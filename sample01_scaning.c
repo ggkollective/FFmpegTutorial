@@ -27,6 +27,7 @@ int main(int argc, char* argv[])
 	if(avformat_find_stream_info(avFormatContext, NULL) < 0)
 	{
 		printf("유료한 스트림 정보가 없습니다.\n");
+		avformat_close_input(&avFormatContext);
 		exit(EXIT_SUCCESS);
 	}
 
@@ -71,6 +72,7 @@ int main(int argc, char* argv[])
 	if(videoStreamIndex < 0 && audioStreamIndex < 0)
 	{
 		printf("이 컨테이너에는 비디오/오디오 스트림 정보가 없습니다.\n");
+		avformat_close_input(&avFormatContext);
 		exit(EXIT_SUCCESS);
 	}
 
