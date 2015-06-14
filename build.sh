@@ -1,1 +1,2 @@
-gcc -o sample01_scan sample01_scan.c -I"/opt/ffmpeg/include" $(pkg-config --libs libavformat libavcodec libavutil libavfilter)
+gcc -o sample01_scaning sample01_scaning.c -I"/opt/ffmpeg/include" $(pkg-config --libs libavformat libavcodec libavutil libavfilter);
+gcc -o sample02_demuxing sample02_demuxing.c -I"/opt/ffmpeg/include" $(pkg-config --libs libavformat libavcodec libavutil libavfilter);
