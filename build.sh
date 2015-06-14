@@ -1,0 +1,1 @@
+gcc -o sample01_scan sample01_scan.c -I"/opt/ffmpeg/include" $(pkg-config --libs libavformat libavcodec libavutil libavfilter)
