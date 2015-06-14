@@ -5,6 +5,8 @@
 int main(int argc, char* argv[])
 {
 	AVFormatContext* avFormatContext = NULL;
+	const char* inFileName;
+	int returnCode;
 
 	av_register_all();
 
@@ -14,13 +16,17 @@ int main(int argc, char* argv[])
 		exit(EXIT_SUCCESS);
 	}
 
-	if(avformat_open_input(&avFormatContext, argv[1], NULL, NULL) < 0)
+	inFileName = argv[1];
+
+	returnCode = avformat_open_input(&avFormatContext, inFileName, NULL, NULL);
+	if(returnCode < 0)
 	{
 		printf("알려지지 않았거나 잘못된 파일 형식입니다.\n");
 		exit(EXIT_SUCCESS);
 	}
 
-	if(avformat_find_stream_info(avFormatContext, NULL) < 0)
+	returnCode = avformat_find_stream_info(avFormatContext, NULL);
+	if(returnCode < 0)
 	{
 		printf("유료한 스트림 정보가 없습니다.\n");
 		avformat_close_input(&avFormatContext);
@@ -29,8 +35,6 @@ int main(int argc, char* argv[])
 
 	unsigned int index;
 
-	// 스트림 index를 미리 저장하기 위해 사용합니다.
-	// 이 정보는 리먹싱, 디코딩과 인코딩시 데이터를 추적하는데 유용하게 사용할 수 있습니다.
 	int videoStreamIndex = -1;
 	int audioStreamIndex = -1;
 
@@ -39,12 +43,10 @@ int main(int argc, char* argv[])
 		AVCodecContext* pCodecContext = avFormatContext->streams[index]->codec;
 		if(pCodecContext->codec_type == AVMEDIA_TYPE_VIDEO)
 		{
-			// 이 컨테이너에는 적어도 한개 이상의 비디오 코덱정보가 있습니다.
 			videoStreamIndex = index;
 		}
 		else if(pCodecContext->codec_type == AVMEDIA_TYPE_AUDIO)
 		{
-			// 이 컨테이너에는 적어도 한개 이상의 오디오 코덱정보가 있습니다.
 			audioStreamIndex = index;
 		}
 	}
@@ -58,7 +60,6 @@ int main(int argc, char* argv[])
 
 	// 디코딩되지 않은 데이터는 AVPacket을 통해 읽어올 수 있습니다.
 	AVPacket packet;
-	int returnCode;
 
 	// 데이터 읽기 시작
 	while(1)
@@ -81,10 +82,7 @@ int main(int argc, char* argv[])
 
 		av_free_packet(&packet);
 	}
-	
-	printf("End of file...\n");
 
-	// avformat_open_input으로부터 할당된 자원 해제
 	avformat_close_input(&avFormatContext);
 
 	return 0;

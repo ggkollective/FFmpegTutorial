@@ -5,6 +5,8 @@
 int main(int argc, char* argv[])
 {
 	AVFormatContext* avFormatContext = NULL;
+	const char* inFileName;
+	int returnCode;
 
 	// 컨테이너, 코덱 정보를 일괄적으로 등록합니다.
 	// 이 함수는 여러번 호출되어도 내부적으로는 한번만 등록됩니다.
@@ -16,15 +18,19 @@ int main(int argc, char* argv[])
 		exit(EXIT_SUCCESS);
 	}
 
-	// 주어진 파일 이름으로부터 AVFormatContext를 가져옵니다. 
-	if(avformat_open_input(&avFormatContext, argv[1], NULL, NULL) < 0)
+	inFileName = argv[1];
+
+	// 주어진 파일 이름으로부터 AVFormatContext를 가져옵니다.
+	returnCode = avformat_open_input(&avFormatContext, inFileName, NULL, NULL);
+	if(returnCode < 0)
 	{
 		printf("알려지지 않았거나 잘못된 파일 형식입니다.\n");
 		exit(EXIT_SUCCESS);
 	}
 
 	//주어진 AVFormatContext로부터 유효한 스트림이 있는지 찾습니다.
-	if(avformat_find_stream_info(avFormatContext, NULL) < 0)
+	returnCode = avformat_find_stream_info(avFormatContext, NULL);
+	if(returnCode < 0)
 	{
 		printf("유료한 스트림 정보가 없습니다.\n");
 		avformat_close_input(&avFormatContext);
