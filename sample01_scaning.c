@@ -2,10 +2,39 @@
 #include <libavcodec/avcodec.h>
 #include <stdio.h>
 
+AVFormatContext* inFormatContext = NULL;
+const char* inFileName;
+
+static int AVInputOpen(const char* fileName)
+{
+	int returnCode = avformat_open_input(&inFormatContext, fileName, NULL, NULL);
+	if(returnCode < 0)
+	{
+		printf("알려지지 않았거나 잘못된 파일 형식입니다.\n");
+		return -1;
+	}
+
+	//주어진 AVFormatContext로부터 유효한 스트림이 있는지 찾습니다.
+	returnCode = avformat_find_stream_info(inFormatContext, NULL);
+	if(returnCode < 0)
+	{
+		printf("유료한 스트림 정보가 없습니다.\n");
+		return -2;
+	}
+
+	return 0;
+}
+
+static void AVRelease()
+{
+	if(inFormatContext != NULL)
+	{
+		avformat_close_input(&inFormatContext);
+	}
+}
+
 int main(int argc, char* argv[])
 {
-	AVFormatContext* avFormatContext = NULL;
-	const char* inFileName;
 	int returnCode;
 
 	// 컨테이너, 코덱 정보를 일괄적으로 등록합니다.
@@ -21,19 +50,10 @@ int main(int argc, char* argv[])
 	inFileName = argv[1];
 
 	// 주어진 파일 이름으로부터 AVFormatContext를 가져옵니다.
-	returnCode = avformat_open_input(&avFormatContext, inFileName, NULL, NULL);
+	returnCode = AVInputOpen(inFileName);
 	if(returnCode < 0)
 	{
-		printf("알려지지 않았거나 잘못된 파일 형식입니다.\n");
-		exit(EXIT_SUCCESS);
-	}
-
-	//주어진 AVFormatContext로부터 유효한 스트림이 있는지 찾습니다.
-	returnCode = avformat_find_stream_info(avFormatContext, NULL);
-	if(returnCode < 0)
-	{
-		printf("유료한 스트림 정보가 없습니다.\n");
-		avformat_close_input(&avFormatContext);
+		AVRelease();
 		exit(EXIT_SUCCESS);
 	}
 
@@ -44,11 +64,11 @@ int main(int argc, char* argv[])
 	int videoStreamIndex = -1;
 	int audioStreamIndex = -1;
 
-	// avFormatContext->nb_streams : 컨테이너가 저장하고 있는 총 스트림 갯수
-	for(index = 0; index < avFormatContext->nb_streams; index++)
+	// inFormatContext->nb_streams : 컨테이너가 저장하고 있는 총 스트림 갯수
+	for(index = 0; index < inFormatContext->nb_streams; index++)
 	{
 		// 이 과정에서 스트림 내부에 있는 코덱 정보를 가져올 수 있습니다.
-		AVCodecContext* pCodecContext = avFormatContext->streams[index]->codec;
+		AVCodecContext* pCodecContext = inFormatContext->streams[index]->codec;
 
 		// pCodecContext->codec_type : 코덱의 타입을 알 수 있습니다.
 		// 가장 많이 볼 수 있는 타입은 비디오와 오디오입니다.
@@ -78,12 +98,8 @@ int main(int argc, char* argv[])
 	if(videoStreamIndex < 0 && audioStreamIndex < 0)
 	{
 		printf("이 컨테이너에는 비디오/오디오 스트림 정보가 없습니다.\n");
-		avformat_close_input(&avFormatContext);
-		exit(EXIT_SUCCESS);
 	}
 
-	// avformat_open_input으로부터 할당된 자원 해제
-	avformat_close_input(&avFormatContext);
-
+	AVRelease();
 	return 0;
 }
