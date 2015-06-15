@@ -7,7 +7,12 @@ const char* inFileName;
 
 static int AVInputOpen(const char* fileName)
 {
-	int returnCode = avformat_open_input(&inAVFormatContext, fileName, NULL, NULL);
+	unsigned int index;
+	int videoStreamIndex = -1;
+	int audioStreamIndex = -1;
+	int returnCode;
+
+	returnCode = avformat_open_input(&inAVFormatContext, fileName, NULL, NULL);
 	if(returnCode < 0)
 	{
 		printf("알려지지 않았거나 잘못된 파일 형식입니다.\n");
@@ -20,6 +25,25 @@ static int AVInputOpen(const char* fileName)
 	{
 		printf("유료한 스트림 정보가 없습니다.\n");
 		return -2;
+	}
+
+	for(index = 0; index < inAVFormatContext->nb_streams; index++)
+	{
+		AVCodecContext* pCodecContext = inAVFormatContext->streams[index]->codec;
+		if(pCodecContext->codec_type == AVMEDIA_TYPE_VIDEO)
+		{
+			videoStreamIndex = index;
+		}
+		else if(pCodecContext->codec_type == AVMEDIA_TYPE_AUDIO)
+		{
+			audioStreamIndex = index;
+		}
+	}
+
+	if(videoStreamIndex < 0 && audioStreamIndex < 0)
+	{
+		printf("이 컨테이너에는 비디오/오디오 스트림 정보가 없습니다.\n");
+		return -3;
 	}
 
 	return 0;
@@ -50,31 +74,6 @@ int main(int argc, char* argv[])
 	returnCode = AVInputOpen(inFileName);
 	if(returnCode < 0)
 	{
-		AVRelease();
-		exit(EXIT_SUCCESS);
-	}
-
-	unsigned int index;
-
-	int videoStreamIndex = -1;
-	int audioStreamIndex = -1;
-
-	for(index = 0; index < inAVFormatContext->nb_streams; index++)
-	{
-		AVCodecContext* pCodecContext = inAVFormatContext->streams[index]->codec;
-		if(pCodecContext->codec_type == AVMEDIA_TYPE_VIDEO)
-		{
-			videoStreamIndex = index;
-		}
-		else if(pCodecContext->codec_type == AVMEDIA_TYPE_AUDIO)
-		{
-			audioStreamIndex = index;
-		}
-	}
-
-	if(videoStreamIndex < 0 && audioStreamIndex < 0)
-	{
-		printf("이 컨테이너에는 비디오/오디오 스트림 정보가 없습니다.\n");
 		AVRelease();
 		exit(EXIT_SUCCESS);
 	}
