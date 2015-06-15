@@ -2,12 +2,12 @@
 #include <libavcodec/avcodec.h>
 #include <stdio.h>
 
-AVFormatContext* inFormatContext = NULL;
+AVFormatContext* inAVFormatContext = NULL;
 const char* inFileName;
 
 static int AVInputOpen(const char* fileName)
 {
-	int returnCode = avformat_open_input(&inFormatContext, fileName, NULL, NULL);
+	int returnCode = avformat_open_input(&inAVFormatContext, fileName, NULL, NULL);
 	if(returnCode < 0)
 	{
 		printf("알려지지 않았거나 잘못된 파일 형식입니다.\n");
@@ -15,7 +15,7 @@ static int AVInputOpen(const char* fileName)
 	}
 
 	//주어진 AVFormatContext로부터 유효한 스트림이 있는지 찾습니다.
-	returnCode = avformat_find_stream_info(inFormatContext, NULL);
+	returnCode = avformat_find_stream_info(inAVFormatContext, NULL);
 	if(returnCode < 0)
 	{
 		printf("유료한 스트림 정보가 없습니다.\n");
@@ -27,9 +27,9 @@ static int AVInputOpen(const char* fileName)
 
 static void AVRelease()
 {
-	if(inFormatContext != NULL)
+	if(inAVFormatContext != NULL)
 	{
-		avformat_close_input(&inFormatContext);
+		avformat_close_input(&inAVFormatContext);
 	}
 }
 
@@ -64,11 +64,11 @@ int main(int argc, char* argv[])
 	int videoStreamIndex = -1;
 	int audioStreamIndex = -1;
 
-	// inFormatContext->nb_streams : 컨테이너가 저장하고 있는 총 스트림 갯수
-	for(index = 0; index < inFormatContext->nb_streams; index++)
+	// inAVFormatContext->nb_streams : 컨테이너가 저장하고 있는 총 스트림 갯수
+	for(index = 0; index < inAVFormatContext->nb_streams; index++)
 	{
 		// 이 과정에서 스트림 내부에 있는 코덱 정보를 가져올 수 있습니다.
-		AVCodecContext* pCodecContext = inFormatContext->streams[index]->codec;
+		AVCodecContext* pCodecContext = inAVFormatContext->streams[index]->codec;
 
 		// pCodecContext->codec_type : 코덱의 타입을 알 수 있습니다.
 		// 가장 많이 볼 수 있는 타입은 비디오와 오디오입니다.

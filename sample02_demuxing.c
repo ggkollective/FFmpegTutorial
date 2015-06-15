@@ -2,12 +2,12 @@
 #include <libavcodec/avcodec.h>
 #include <stdio.h>
 
-AVFormatContext* inFormatContext = NULL;
+AVFormatContext* inAVFormatContext = NULL;
 const char* inFileName;
 
 static int AVInputOpen(const char* fileName)
 {
-	int returnCode = avformat_open_input(&inFormatContext, fileName, NULL, NULL);
+	int returnCode = avformat_open_input(&inAVFormatContext, fileName, NULL, NULL);
 	if(returnCode < 0)
 	{
 		printf("알려지지 않았거나 잘못된 파일 형식입니다.\n");
@@ -15,7 +15,7 @@ static int AVInputOpen(const char* fileName)
 	}
 
 	//주어진 AVFormatContext로부터 유효한 스트림이 있는지 찾습니다.
-	returnCode = avformat_find_stream_info(inFormatContext, NULL);
+	returnCode = avformat_find_stream_info(inAVFormatContext, NULL);
 	if(returnCode < 0)
 	{
 		printf("유료한 스트림 정보가 없습니다.\n");
@@ -27,9 +27,9 @@ static int AVInputOpen(const char* fileName)
 
 static void AVRelease()
 {
-	if(inFormatContext != NULL)
+	if(inAVFormatContext != NULL)
 	{
-		avformat_close_input(&inFormatContext);
+		avformat_close_input(&inAVFormatContext);
 	}
 }
 
@@ -58,9 +58,9 @@ int main(int argc, char* argv[])
 	int videoStreamIndex = -1;
 	int audioStreamIndex = -1;
 
-	for(index = 0; index < inFormatContext->nb_streams; index++)
+	for(index = 0; index < inAVFormatContext->nb_streams; index++)
 	{
-		AVCodecContext* pCodecContext = inFormatContext->streams[index]->codec;
+		AVCodecContext* pCodecContext = inAVFormatContext->streams[index]->codec;
 		if(pCodecContext->codec_type == AVMEDIA_TYPE_VIDEO)
 		{
 			videoStreamIndex = index;
@@ -84,7 +84,7 @@ int main(int argc, char* argv[])
 	// 데이터 읽기 시작
 	while(1)
 	{
-		returnCode = av_read_frame(inFormatContext, &packet);
+		returnCode = av_read_frame(inAVFormatContext, &packet);
 		if(returnCode == AVERROR_EOF)
 		{
 			// 더 이상 읽어올 패킷이 없습니다.
