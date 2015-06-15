@@ -2,10 +2,39 @@
 #include <libavcodec/avcodec.h>
 #include <stdio.h>
 
+AVFormatContext* inFormatContext = NULL;
+const char* inFileName;
+
+static int AVInputOpen(const char* fileName)
+{
+	int returnCode = avformat_open_input(&inFormatContext, fileName, NULL, NULL);
+	if(returnCode < 0)
+	{
+		printf("알려지지 않았거나 잘못된 파일 형식입니다.\n");
+		return -1;
+	}
+
+	//주어진 AVFormatContext로부터 유효한 스트림이 있는지 찾습니다.
+	returnCode = avformat_find_stream_info(inFormatContext, NULL);
+	if(returnCode < 0)
+	{
+		printf("유료한 스트림 정보가 없습니다.\n");
+		return -2;
+	}
+
+	return 0;
+}
+
+static void AVRelease()
+{
+	if(inFormatContext != NULL)
+	{
+		avformat_close_input(&inFormatContext);
+	}
+}
+
 int main(int argc, char* argv[])
 {
-	AVFormatContext* avFormatContext = NULL;
-	const char* inFileName;
 	int returnCode;
 
 	av_register_all();
@@ -17,19 +46,10 @@ int main(int argc, char* argv[])
 	}
 
 	inFileName = argv[1];
-
-	returnCode = avformat_open_input(&avFormatContext, inFileName, NULL, NULL);
+	returnCode = AVInputOpen(inFileName);
 	if(returnCode < 0)
 	{
-		printf("알려지지 않았거나 잘못된 파일 형식입니다.\n");
-		exit(EXIT_SUCCESS);
-	}
-
-	returnCode = avformat_find_stream_info(avFormatContext, NULL);
-	if(returnCode < 0)
-	{
-		printf("유료한 스트림 정보가 없습니다.\n");
-		avformat_close_input(&avFormatContext);
+		AVRelease();
 		exit(EXIT_SUCCESS);
 	}
 
@@ -38,9 +58,9 @@ int main(int argc, char* argv[])
 	int videoStreamIndex = -1;
 	int audioStreamIndex = -1;
 
-	for(index = 0; index < avFormatContext->nb_streams; index++)
+	for(index = 0; index < inFormatContext->nb_streams; index++)
 	{
-		AVCodecContext* pCodecContext = avFormatContext->streams[index]->codec;
+		AVCodecContext* pCodecContext = inFormatContext->streams[index]->codec;
 		if(pCodecContext->codec_type == AVMEDIA_TYPE_VIDEO)
 		{
 			videoStreamIndex = index;
@@ -54,7 +74,7 @@ int main(int argc, char* argv[])
 	if(videoStreamIndex < 0 && audioStreamIndex < 0)
 	{
 		printf("이 컨테이너에는 비디오/오디오 스트림 정보가 없습니다.\n");
-		avformat_close_input(&avFormatContext);
+		AVRelease();
 		exit(EXIT_SUCCESS);
 	}
 
@@ -64,7 +84,7 @@ int main(int argc, char* argv[])
 	// 데이터 읽기 시작
 	while(1)
 	{
-		returnCode = av_read_frame(avFormatContext, &packet);
+		returnCode = av_read_frame(inFormatContext, &packet);
 		if(returnCode == AVERROR_EOF)
 		{
 			// 더 이상 읽어올 패킷이 없습니다.
@@ -83,7 +103,7 @@ int main(int argc, char* argv[])
 		av_free_packet(&packet);
 	}
 
-	avformat_close_input(&avFormatContext);
+	AVRelease();
 
 	return 0;
 }
