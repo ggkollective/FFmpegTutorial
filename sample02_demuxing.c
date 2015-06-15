@@ -46,6 +46,7 @@ int main(int argc, char* argv[])
 	}
 
 	inFileName = argv[1];
+
 	returnCode = AVInputOpen(inFileName);
 	if(returnCode < 0)
 	{
