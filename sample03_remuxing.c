@@ -2,44 +2,33 @@
 #include <libavcodec/avcodec.h>
 #include <stdio.h>
 
-int main(int argc, char* argv[])
+AVFormatContext* inAVFormatContext = NULL;
+AVFormatContext* outAVFormatContext = NULL;
+const char* inFileName;
+const char* outFileName;
+
+int videoStreamIndex = -1;
+int audioStreamIndex = -1;
+
+static int AVInputOpen(const char* fileName)
 {
-	AVFormatContext* inAVFormatContext = NULL;
-	AVFormatContext* outAVFormatContext = NULL;
-	const char* inFileName;
-	const char* outFileName;
+	unsigned int index;
 	int returnCode;
 
-	av_register_all();
-
-	if(argc < 3)
-	{
-		printf("usage : %s [INPUT] [OUTPUT]\n", argv[0]);
-		exit(EXIT_SUCCESS);
-	}
-
-	inFileName = argv[1];
-	outFileName = argv[2];
-
-	returnCode = avformat_open_input(&inAVFormatContext, inFileName, NULL, NULL);
+	returnCode = avformat_open_input(&inAVFormatContext, fileName, NULL, NULL);
 	if(returnCode < 0)
 	{
 		printf("알려지지 않았거나 잘못된 파일 형식입니다.\n");
-		exit(EXIT_SUCCESS);
+		return -1;
 	}
 
+	//주어진 AVFormatContext로부터 유효한 스트림이 있는지 찾습니다.
 	returnCode = avformat_find_stream_info(inAVFormatContext, NULL);
 	if(returnCode < 0)
 	{
 		printf("유료한 스트림 정보가 없습니다.\n");
-		avformat_close_input(&inAVFormatContext);
-		exit(EXIT_SUCCESS);
+		return -2;
 	}
-
-	unsigned int index;
-
-	int videoStreamIndex = -1;
-	int audioStreamIndex = -1;
 
 	for(index = 0; index < inAVFormatContext->nb_streams; index++)
 	{
@@ -57,12 +46,19 @@ int main(int argc, char* argv[])
 	if(videoStreamIndex < 0 && audioStreamIndex < 0)
 	{
 		printf("이 컨테이너에는 비디오/오디오 스트림 정보가 없습니다.\n");
-		avformat_close_input(&inAVFormatContext);
-		exit(EXIT_SUCCESS);
+		return -3;
 	}
 
+	return 0;
+}
+
+static int AVOutputOpen(const char* fileName)
+{
+	unsigned int index;
+	int returnCode;
+
 	// --- OUTPUT 파일 초기화
-	returnCode = avformat_alloc_output_context2(&outAVFormatContext, NULL, NULL, outFileName);
+	returnCode = avformat_alloc_output_context2(&outAVFormatContext, NULL, NULL, fileName);
 	if(returnCode < 0)
 	{
 		printf("파일 생성에 실패하였습니다.");
@@ -80,16 +76,14 @@ int main(int argc, char* argv[])
 		if(outStream == NULL)
 		{
 			printf("새로운 스트림 생성에 실패하였습니다.");
-			avformat_close_input(&inAVFormatContext);
-			exit(EXIT_SUCCESS);
+			return -1;
 		}
 
 		returnCode = avcodec_copy_context(outStream->codec, inStream->codec);
 		if(returnCode < 0)
 		{
 			printf("스트림 정보를 복사하는데 실패하였습니다.");
-			avformat_close_input(&inAVFormatContext);
-			exit(EXIT_SUCCESS);
+			return -2;
 		}
 
 		if(outAVFormatContext->oformat->flags & AVFMT_GLOBALHEADER)
@@ -101,11 +95,10 @@ int main(int argc, char* argv[])
 	if(!(outAVFormatContext->oformat->flags & AVFMT_NOFILE))
 	{
 		// 경로에 있는 파일에 접근하기 위한 AVIOContext 초기화
-		if(avio_open(&outAVFormatContext->pb, argv[2], AVIO_FLAG_WRITE) < 0)
+		if(avio_open(&outAVFormatContext->pb, fileName, AVIO_FLAG_WRITE) < 0)
 		{
 			printf("파일을 쓰기 위한 I/O 생성에 실패하였습니다.");
-			avformat_close_input(&inAVFormatContext);
-			exit(EXIT_SUCCESS);	
+			return -3;
 		}
 	}
 
@@ -113,19 +106,61 @@ int main(int argc, char* argv[])
 	returnCode = avformat_write_header(outAVFormatContext, NULL);
 	if(returnCode < 0)
 	{
-			printf("파일 헤더 생성에 실패하였습니다.");
-			avformat_close_input(&inAVFormatContext);
+		printf("파일 헤더 생성에 실패하였습니다.");
+		return -4;	
+	}
 
-			if(outAVFormatContext != NULL && !(outAVFormatContext->oformat->flags & AVFMT_NOFILE))
-			{
-				avio_closep(&outAVFormatContext->pb);
-			}
-			avformat_free_context(outAVFormatContext);
-			exit(EXIT_SUCCESS);		
+	return 0;
+}
+
+static void AVRelease()
+{
+	if(inAVFormatContext != NULL)
+	{
+		avformat_close_input(&inAVFormatContext);
+	}
+
+	if(outAVFormatContext != NULL)
+	{
+		if(!(outAVFormatContext->oformat->flags & AVFMT_NOFILE))
+		{
+			avio_closep(&outAVFormatContext->pb);
+		}
+		avformat_free_context(outAVFormatContext);
+	}
+}
+
+int main(int argc, char* argv[])
+{
+	int returnCode;
+
+	av_register_all();
+
+	if(argc < 3)
+	{
+		printf("usage : %s [INPUT] [OUTPUT]\n", argv[0]);
+		exit(EXIT_SUCCESS);
+	}
+
+	inFileName = argv[1];
+	outFileName = argv[2];
+
+	returnCode = AVInputOpen(inFileName);
+	if(returnCode < 0)
+	{
+		AVRelease();
+		exit(EXIT_SUCCESS);
+	}
+
+	returnCode = AVOutputOpen(outFileName);
+	if(returnCode < 0)
+	{
+		AVRelease();
+		exit(EXIT_SUCCESS);
 	}
 
 	// OUTPUT 파일에 대한 정보를 출력합니다.
-	av_dump_format(outAVFormatContext, 0, argv[2], 1);
+	av_dump_format(outAVFormatContext, 0, outFileName, 1);
 
 	// 디코딩되지 않은 데이터는 AVPacket을 통해 읽어올 수 있습니다.
 	AVPacket packet;
@@ -157,14 +192,7 @@ int main(int argc, char* argv[])
 		av_free_packet(&packet);
 	}
 
-	avformat_close_input(&inAVFormatContext);
-
-	if(outAVFormatContext != NULL && !(outAVFormatContext->oformat->flags & AVFMT_NOFILE))
-	{
-		avio_closep(&outAVFormatContext->pb);
-	}
-
-	avformat_free_context(outAVFormatContext);
+	AVRelease();
 
 	return 0;
 }
