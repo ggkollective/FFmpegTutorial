@@ -10,7 +10,7 @@ const char* outFileName;
 int videoStreamIndex = -1;
 int audioStreamIndex = -1;
 
-static int AVInputOpen(const char* fileName)
+static int AVOpenInput(const char* fileName)
 {
 	unsigned int index;
 	int returnCode;
@@ -52,7 +52,7 @@ static int AVInputOpen(const char* fileName)
 	return 0;
 }
 
-static int AVOutputOpen(const char* fileName)
+static int AVOpenOutput(const char* fileName)
 {
 	unsigned int index;
 	int returnCode;
@@ -149,14 +149,14 @@ int main(int argc, char* argv[])
 	inFileName = argv[1];
 	outFileName = argv[2];
 
-	returnCode = AVInputOpen(inFileName);
+	returnCode = AVOpenInput(inFileName);
 	if(returnCode < 0)
 	{
 		AVRelease();
 		exit(EXIT_SUCCESS);
 	}
 
-	returnCode = AVOutputOpen(outFileName);
+	returnCode = AVOpenOutput(outFileName);
 	if(returnCode < 0)
 	{
 		AVRelease();

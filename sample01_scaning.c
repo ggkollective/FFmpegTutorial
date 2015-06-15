@@ -5,7 +5,7 @@
 AVFormatContext* inAVFormatContext = NULL;
 const char* inFileName;
 
-static int AVInputOpen(const char* fileName)
+static int AVOpenInput(const char* fileName)
 {
 	int returnCode = avformat_open_input(&inAVFormatContext, fileName, NULL, NULL);
 	if(returnCode < 0)
@@ -49,7 +49,7 @@ int main(int argc, char* argv[])
 
 	inFileName = argv[1];
 	// 주어진 파일 이름으로부터 AVFormatContext를 가져옵니다.
-	returnCode = AVInputOpen(inFileName);
+	returnCode = AVOpenInput(inFileName);
 	if(returnCode < 0)
 	{
 		AVRelease();
