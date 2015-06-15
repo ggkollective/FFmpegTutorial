@@ -5,11 +5,12 @@
 AVFormatContext* inAVFormatContext = NULL;
 const char* inFileName;
 
+int videoStreamIndex = -1;
+int audioStreamIndex = -1;
+
 static int AVInputOpen(const char* fileName)
 {
 	unsigned int index;
-	int videoStreamIndex = -1;
-	int audioStreamIndex = -1;
 	int returnCode;
 
 	returnCode = avformat_open_input(&inAVFormatContext, fileName, NULL, NULL);
