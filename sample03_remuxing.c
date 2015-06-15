@@ -79,6 +79,10 @@ static int AVOutputOpen(const char* fileName)
 			return -1;
 		}
 
+		// 이전까지는 outStream->codec의 time_base를 참조하였지만
+		// 현재는 Deprecated 된 관계로 AVStream에도 설정을 합니다.
+		outStream->time_base = inStream->time_base;
+
 		returnCode = avcodec_copy_context(outStream->codec, inStream->codec);
 		if(returnCode < 0)
 		{
