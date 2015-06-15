@@ -61,7 +61,7 @@ static int AVOpenOutput(const char* fileName)
 	returnCode = avformat_alloc_output_context2(&outAVFormatContext, NULL, NULL, fileName);
 	if(returnCode < 0)
 	{
-		printf("파일 생성에 실패하였습니다.");
+		printf("파일 생성에 실패하였습니다.\n");
 		avformat_close_input(&inAVFormatContext);
 		exit(EXIT_SUCCESS);
 	}
@@ -75,7 +75,7 @@ static int AVOpenOutput(const char* fileName)
 		AVStream* outStream = avformat_new_stream(outAVFormatContext, inStream->codec->codec);
 		if(outStream == NULL)
 		{
-			printf("새로운 스트림 생성에 실패하였습니다.");
+			printf("새로운 스트림 생성에 실패하였습니다.\n");
 			return -1;
 		}
 
@@ -86,7 +86,7 @@ static int AVOpenOutput(const char* fileName)
 		returnCode = avcodec_copy_context(outStream->codec, inStream->codec);
 		if(returnCode < 0)
 		{
-			printf("스트림 정보를 복사하는데 실패하였습니다.");
+			printf("스트림 정보를 복사하는데 실패하였습니다.\n");
 			return -2;
 		}
 
@@ -101,7 +101,7 @@ static int AVOpenOutput(const char* fileName)
 		// 경로에 있는 파일에 접근하기 위한 AVIOContext 초기화
 		if(avio_open(&outAVFormatContext->pb, fileName, AVIO_FLAG_WRITE) < 0)
 		{
-			printf("파일을 쓰기 위한 I/O 생성에 실패하였습니다.");
+			printf("파일을 쓰기 위한 I/O 생성에 실패하였습니다.\n");
 			return -3;
 		}
 	}
@@ -110,7 +110,7 @@ static int AVOpenOutput(const char* fileName)
 	returnCode = avformat_write_header(outAVFormatContext, NULL);
 	if(returnCode < 0)
 	{
-		printf("파일 헤더 생성에 실패하였습니다.");
+		printf("파일 헤더 생성에 실패하였습니다.\n");
 		return -4;	
 	}
 
@@ -189,7 +189,7 @@ int main(int argc, char* argv[])
 		returnCode = av_interleaved_write_frame(outAVFormatContext, &packet);
 		if(returnCode < 0)
 		{
-			printf("패킷 복사에 실패하였습니다.");
+			printf("패킷 복사에 실패하였습니다.\n");
 			break;
 		}
 
