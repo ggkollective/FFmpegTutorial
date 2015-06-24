@@ -20,7 +20,6 @@ static int AVOpenInput(const char* fileName)
 		return -1;
 	}
 
-	//주어진 AVFormatContext로부터 유효한 스트림이 있는지 찾습니다.
 	returnCode = avformat_find_stream_info(inAVFormatContext, NULL);
 	if(returnCode < 0)
 	{

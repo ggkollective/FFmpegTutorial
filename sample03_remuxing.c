@@ -22,7 +22,6 @@ static int AVOpenInput(const char* fileName)
 		return -1;
 	}
 
-	//주어진 AVFormatContext로부터 유효한 스트림이 있는지 찾습니다.
 	returnCode = avformat_find_stream_info(inAVFormatContext, NULL);
 	if(returnCode < 0)
 	{
@@ -169,13 +168,11 @@ int main(int argc, char* argv[])
 	// 디코딩되지 않은 데이터는 AVPacket을 통해 읽어올 수 있습니다.
 	AVPacket packet;
 
-	// 데이터 읽기 시작
 	while(1)
 	{
 		returnCode = av_read_frame(inAVFormatContext, &packet);
 		if(returnCode == AVERROR_EOF)
 		{
-			// 더 이상 읽어올 패킷이 없습니다.
 			break;
 		}
 
