@@ -25,7 +25,7 @@ static int AVOpenInput(const char* fileName)
 	returnCode = avformat_find_stream_info(inAVFormatContext, NULL);
 	if(returnCode < 0)
 	{
-		printf("유료한 스트림 정보가 없습니다.\n");
+		printf("유효한 스트림 정보가 없습니다.\n");
 		return -2;
 	}
 

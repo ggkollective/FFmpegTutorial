@@ -10,23 +10,10 @@ const char* inFileName;
 int videoStreamIndex = -1;
 int audioStreamIndex = -1;
 
-static const char* AVDisplayCodecName(AVCodecContext* avCodecContext)
-{
-	// AVCodecDescriptor Context를 통해 코덱 정보를 쉽게 가져올 수 있습니다.
-	const AVCodecDescriptor *codecDescriptor = avcodec_descriptor_get(avCodecContext->codec_id);
-	if(codecDescriptor != NULL)
-	{
-		return codecDescriptor->name;
-	}
-
-	return "";
-}
-
 static int AVOpenDecoder(AVCodecContext* avCodecContext)
 {
 	if(avCodecContext == NULL)
 	{
-		printf("올바르지 않은 AVCodecContext 입니다.\n");
 		return -1;
 	}
 
@@ -34,18 +21,15 @@ static int AVOpenDecoder(AVCodecContext* avCodecContext)
 	AVCodec* decoder = avcodec_find_decoder(avCodecContext->codec_id);
 	if(decoder == NULL)
 	{
-		printf("%s 코덱의 디코더를 찾을 수 없습니다.\n", AVDisplayCodecName(avCodecContext));
 		return -2;
 	}
 
 	// 찾아낸 디코더를 통해 코덱을 엽니다.
 	if(avcodec_open2(avCodecContext, decoder, NULL) < 0)
 	{
-		printf("%s 코덱을 여는데 실패하였습니다.\n", AVDisplayCodecName(avCodecContext));
 		return -3;
 	}
 
-	printf("%s 코덱을 여는데 성공하였습니다.\n", AVDisplayCodecName(avCodecContext));
 	return 0;
 }
 
@@ -65,7 +49,7 @@ static int AVOpenInput(const char* fileName)
 	returnCode = avformat_find_stream_info(inAVFormatContext, NULL);
 	if(returnCode < 0)
 	{
-		printf("유료한 스트림 정보가 없습니다.\n");
+		printf("유효한 스트림 정보가 없습니다.\n");
 		return -2;
 	}
 
@@ -146,7 +130,6 @@ int main(int argc, char* argv[])
 	AVFrame* decodedFrame = av_frame_alloc();
 	if(decodedFrame == NULL)
 	{
-		printf("시스템 자원이 부족합니다.\n");
 		AVRelease();
 		exit(EXIT_SUCCESS);
 	}
