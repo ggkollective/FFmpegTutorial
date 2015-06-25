@@ -118,11 +118,11 @@ int main(int argc, char* argv[])
 		release();
 		exit(EXIT_SUCCESS);
 	}
+	
+	AVPacket packet;
 
 	while(1)
-	{
-		AVPacket packet;
-		
+	{	
 		returnCode = av_read_frame(inAVFormatContext, &packet);
 		if(returnCode == AVERROR_EOF)
 		{
