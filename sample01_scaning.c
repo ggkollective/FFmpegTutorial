@@ -27,18 +27,18 @@ static int openInputFile()
 		AVCodecContext* avCodecContext = inAVFormatContext->streams[index]->codec;
 		if(avCodecContext->codec_type == AVMEDIA_TYPE_VIDEO)
 		{
-			printf("------- Video info -------\n");
-			printf("codec_id : %d\n", avCodecContext->codec_id);
-			printf("bitrate : %d\n", avCodecContext->bit_rate);
-			printf("width : %d / height : %d\n", avCodecContext->width, avCodecContext->height);
+			fprintf(stdout, "------- Video info -------\n");
+			fprintf(stdout, "codec_id : %d\n", avCodecContext->codec_id);
+			fprintf(stdout, "bitrate : %d\n", avCodecContext->bit_rate);
+			fprintf(stdout, "width : %d / height : %d\n", avCodecContext->width, avCodecContext->height);
 		}
 		else if(avCodecContext->codec_type == AVMEDIA_TYPE_AUDIO)
 		{
-			printf("------- Audio info -------\n");
-			printf("codec_id : %d\n", avCodecContext->codec_id);
-			printf("bitrate : %d\n", avCodecContext->bit_rate);
-			printf("sample_rate : %d\n", avCodecContext->sample_rate);
-			printf("number of channels : %d\n", avCodecContext->channels);
+			fprintf(stdout, "------- Audio info -------\n");
+			fprintf(stdout, "codec_id : %d\n", avCodecContext->codec_id);
+			fprintf(stdout, "bitrate : %d\n", avCodecContext->bit_rate);
+			fprintf(stdout, "sample_rate : %d\n", avCodecContext->sample_rate);
+			fprintf(stdout, "number of channels : %d\n", avCodecContext->channels);
 		}
 	}
 
