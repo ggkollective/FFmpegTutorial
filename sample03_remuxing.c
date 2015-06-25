@@ -81,7 +81,7 @@ static int createOutputFile()
 
 		// Deprecated된 AVCodecContext 대신 AVStream을 사용.
 		outStream->time_base = inStream->time_base;
-		// Codec간 호환성을 맞추기 위해 코덱 태그정보 삭제
+		// FFmpeg에서 지원하는 코덱과 호환성을 맞추기 위해 코덱 태그정보 삭제
 		outCodecContext->codec_tag = 0;
 
 		if(outAVFormatContext->oformat->flags & AVFMT_GLOBALHEADER)
