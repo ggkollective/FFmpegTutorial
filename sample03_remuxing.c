@@ -10,10 +10,10 @@ const char* outFileName;
 int videoStreamIndex = -1;
 int audioStreamIndex = -1;
 
-static int openInputFile(const char* fileName)
+static int openInputFile()
 {
 	unsigned int index;
-	int returnCode = avformat_open_input(&inAVFormatContext, fileName, NULL, NULL);
+	int returnCode = avformat_open_input(&inAVFormatContext, inFileName, NULL, NULL);
 	if(returnCode < 0)
 	{
 		fprintf(stderr, "Could not open input file %s\n", inFileName);
@@ -49,10 +49,10 @@ static int openInputFile(const char* fileName)
 	return 0;
 }
 
-static int createOutputFile(const char* fileName)
+static int createOutputFile()
 {
 	unsigned int index;
-	int returnCode = avformat_alloc_output_context2(&outAVFormatContext, NULL, NULL, fileName);
+	int returnCode = avformat_alloc_output_context2(&outAVFormatContext, NULL, NULL, outFileName);
 	if(returnCode < 0)
 	{
 		fprintf(stderr, "Could not create output context\n");
@@ -93,9 +93,9 @@ static int createOutputFile(const char* fileName)
 	if(!(outAVFormatContext->oformat->flags & AVFMT_NOFILE))
 	{
 		// 실질적으로 파일을 오픈하는 시점입니다.
-		if(avio_open(&outAVFormatContext->pb, fileName, AVIO_FLAG_WRITE) < 0)
+		if(avio_open(&outAVFormatContext->pb, outFileName, AVIO_FLAG_WRITE) < 0)
 		{
-			fprintf(stderr, "Failed to create output file %s\n", fileName);
+			fprintf(stderr, "Failed to create output file %s\n", outFileName);
 			return -4;
 		}
 	}
@@ -135,11 +135,12 @@ int main(int argc, char* argv[])
 
 	if(argc < 3)
 	{
+		fprintf(stderr, "usage : %s <input> <output>\n", argv[0]);
 		exit(EXIT_SUCCESS);
 	}
 
 	inFileName = argv[1];
-	returnCode = openInputFile(inFileName);
+	returnCode = openInputFile();
 	if(returnCode < 0)
 	{
 		release();
@@ -147,7 +148,7 @@ int main(int argc, char* argv[])
 	}
 
 	outFileName = argv[2];
-	returnCode = createOutputFile(outFileName);
+	returnCode = createOutputFile();
 	if(returnCode < 0)
 	{
 		release();

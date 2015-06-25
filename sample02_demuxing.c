@@ -8,10 +8,10 @@ const char* inFileName;
 int videoStreamIndex = -1;
 int audioStreamIndex = -1;
 
-static int openInputFile(const char* fileName)
+static int openInputFile()
 {
 	unsigned int index;
-	int returnCode = avformat_open_input(&inAVFormatContext, fileName, NULL, NULL);
+	int returnCode = avformat_open_input(&inAVFormatContext, inFileName, NULL, NULL);
 	if(returnCode < 0)
 	{
 		fprintf(stderr, "Could not open input file %s\n", inFileName);
@@ -63,11 +63,12 @@ int main(int argc, char* argv[])
 
 	if(argc < 2)
 	{
+		fprintf(stderr, "usage : %s <input>\n", argv[0]);
 		exit(EXIT_SUCCESS);
 	}
 
 	inFileName = argv[1];
-	returnCode = openInputFile(inFileName);
+	returnCode = openInputFile();
 	if(returnCode < 0)
 	{
 		release();
