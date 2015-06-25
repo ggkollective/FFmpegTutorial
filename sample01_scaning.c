@@ -7,6 +7,7 @@ const char* inFileName;
 
 static int openInputFile()
 {
+	unsigned int index;
 	int returnCode = avformat_open_input(&inAVFormatContext, inFileName, NULL, NULL);
 	if(returnCode < 0)
 	{
@@ -17,37 +18,6 @@ static int openInputFile()
 	if(returnCode < 0)
 	{
 		return -2;
-	}
-
-	return 0;
-}
-
-static void release()
-{
-	if(inAVFormatContext != NULL)
-	{
-		avformat_close_input(&inAVFormatContext);
-	}
-}
-
-int main(int argc, char* argv[])
-{
-	unsigned int index;
-	int returnCode;
-
-	av_register_all();
-
-	if(argc < 2)
-	{
-		exit(EXIT_SUCCESS);
-	}
-
-	inFileName = argv[1];
-	returnCode = openInputFile();
-	if(returnCode < 0)
-	{
-		release();
-		return 0;
 	}
 
 	for(index = 0; index < inAVFormatContext->nb_streams; index++)
@@ -68,6 +38,36 @@ int main(int argc, char* argv[])
 			printf("sample_rate : %d\n", avCodecContext->sample_rate);
 			printf("number of channels : %d\n", avCodecContext->channels);
 		}
+	}
+
+	return 0;
+}
+
+static void release()
+{
+	if(inAVFormatContext != NULL)
+	{
+		avformat_close_input(&inAVFormatContext);
+	}
+}
+
+int main(int argc, char* argv[])
+{
+	int returnCode;
+
+	av_register_all();
+
+	if(argc < 2)
+	{
+		exit(EXIT_SUCCESS);
+	}
+
+	inFileName = argv[1];
+	returnCode = openInputFile();
+	if(returnCode < 0)
+	{
+		release();
+		exit(EXIT_SUCCESS);
 	}
 
 	release();
