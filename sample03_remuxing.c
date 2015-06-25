@@ -169,6 +169,11 @@ int main(int argc, char* argv[])
 			break;
 		}
 
+		AVStream* inStream = inAVFormatContext->streams[packet.stream_index];
+		AVStream* outStream = outAVFormatContext->streams[packet.stream_index];
+
+		av_packet_rescale_ts(&packet, inStream->time_base, outStream->time_base);
+
 		returnCode = av_interleaved_write_frame(outAVFormatContext, &packet);
 		if(returnCode < 0)
 		{
