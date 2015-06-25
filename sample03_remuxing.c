@@ -52,9 +52,7 @@ static int openInputFile(const char* fileName)
 static int createOutputFile(const char* fileName)
 {
 	unsigned int index;
-	int returnCode;
-
-	returnCode = avformat_alloc_output_context2(&outAVFormatContext, NULL, NULL, fileName);
+	int returnCode = avformat_alloc_output_context2(&outAVFormatContext, NULL, NULL, fileName);
 	if(returnCode < 0)
 	{
 		fprintf(stderr, "Could not create output context\n");
