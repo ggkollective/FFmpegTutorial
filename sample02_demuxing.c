@@ -14,12 +14,14 @@ static int openInputFile(const char* fileName)
 	int returnCode = avformat_open_input(&inAVFormatContext, fileName, NULL, NULL);
 	if(returnCode < 0)
 	{
+		fprintf(stderr, "Could not open input file %s\n", inFileName);
 		return -1;
 	}
 
 	returnCode = avformat_find_stream_info(inAVFormatContext, NULL);
 	if(returnCode < 0)
 	{
+		fprintf(stderr, "Failed to retrieve input stream information\n");
 		return -2;
 	}
 
@@ -38,6 +40,7 @@ static int openInputFile(const char* fileName)
 
 	if(videoStreamIndex < 0 && audioStreamIndex < 0)
 	{
+		fprintf(stderr, "Failed to retrieve input stream information\n");
 		return -3;
 	}
 
@@ -60,12 +63,10 @@ int main(int argc, char* argv[])
 
 	if(argc < 2)
 	{
-		printf("파일 이름을 입력하세요.\n");
 		exit(EXIT_SUCCESS);
 	}
 
 	inFileName = argv[1];
-
 	returnCode = openInputFile(inFileName);
 	if(returnCode < 0)
 	{
@@ -73,26 +74,24 @@ int main(int argc, char* argv[])
 		exit(EXIT_SUCCESS);
 	}
 
-	// 디코딩되지 않은 데이터는 AVPacket을 통해 읽어올 수 있습니다.
 	AVPacket packet;
 
-	// 데이터 읽기 시작
 	while(1)
 	{
 		returnCode = av_read_frame(inAVFormatContext, &packet);
 		if(returnCode == AVERROR_EOF)
 		{
-			// 더 이상 읽어올 패킷이 없습니다.
+			fprintf(stdout, "End of frame\n");
 			break;
 		}
 
 		if(packet.stream_index == videoStreamIndex)
 		{
-			printf("Video packet\n");
+			fprintf(stdout, "Video packet\n");
 		}
 		else if(packet.stream_index == audioStreamIndex)
 		{
-			printf("Audio packet\n");
+			fprintf(stdout, "Audio packet\n");
 		}
 
 		av_free_packet(&packet);

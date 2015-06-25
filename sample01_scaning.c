@@ -11,12 +11,14 @@ static int openInputFile()
 	int returnCode = avformat_open_input(&inAVFormatContext, inFileName, NULL, NULL);
 	if(returnCode < 0)
 	{
+		fprintf(stderr, "Could not open input file %s\n", inFileName);
 		return -1;
 	}
 
 	returnCode = avformat_find_stream_info(inAVFormatContext, NULL);
 	if(returnCode < 0)
 	{
+		fprintf(stderr, "Failed to retrieve input stream information\n");
 		return -2;
 	}
 
