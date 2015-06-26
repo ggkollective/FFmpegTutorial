@@ -142,13 +142,17 @@ int main(int argc, char* argv[])
 			fprintf(stdout, "-----------------------\n");
 			if(streamType == AVMEDIA_TYPE_VIDEO)
 			{
-				fprintf(stdout, "Video : frame->width, height : %dx%d\n", decodedFrame->width, decodedFrame->height);
-				fprintf(stdout, "Video : frame->sample_aspect_ratio : %d/%d\n", decodedFrame->sample_aspect_ratio.num, decodedFrame->sample_aspect_ratio.den);
+				fprintf(stdout, "Video : frame->width, height : %dx%d\n", 
+					decodedFrame->width, decodedFrame->height);
+				fprintf(stdout, "Video : frame->sample_aspect_ratio : %d/%d\n", 
+					decodedFrame->sample_aspect_ratio.num, decodedFrame->sample_aspect_ratio.den);
 			}
 			else
 			{
-				fprintf(stdout, "Audio : frame->nb_samples : %d\n", decodedFrame->nb_samples);
-				fprintf(stdout, "Audio : frame->channels : %d\n", decodedFrame->channels);
+				fprintf(stdout, "Audio : frame->nb_samples : %d\n", 
+					decodedFrame->nb_samples);
+				fprintf(stdout, "Audio : frame->channels : %d\n", 
+					decodedFrame->channels);
 			}
 
 			av_frame_unref(decodedFrame);
