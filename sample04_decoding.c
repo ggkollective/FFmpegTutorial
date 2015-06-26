@@ -77,7 +77,7 @@ static void release()
 			AVCodecContext* avCodecContext = inAVFormatContext->streams[index]->codec;
 			if(avCodecContext->codec_type == AVMEDIA_TYPE_VIDEO || avCodecContext->codec_type == AVMEDIA_TYPE_AUDIO)
 			{
-				avcodec_close(inAVFormatContext->streams[index]->codec);
+				avcodec_close(avCodecContext);
 			}
 		}
 
