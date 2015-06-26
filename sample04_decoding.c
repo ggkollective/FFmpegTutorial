@@ -71,6 +71,16 @@ static void release()
 {
 	if(inAVFormatContext != NULL)
 	{
+		unsigned int index;
+		for(index = 0; index < inAVFormatContext->nb_streams; index++)
+		{
+			AVCodecContext* avCodecContext = inAVFormatContext->streams[index]->codec;
+			if(avCodecContext->codec_type == AVMEDIA_TYPE_VIDEO || avCodecContext->codec_type == AVMEDIA_TYPE_AUDIO)
+			{
+				avcodec_close(inAVFormatContext->streams[index]->codec);
+			}
+		}
+
 		avformat_close_input(&inAVFormatContext);
 	}
 }
