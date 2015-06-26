@@ -48,11 +48,13 @@ static int openInputFile()
 				break;
 			}
 
-			if(avCodecContext->codec_type == AVMEDIA_TYPE_VIDEO)
+			if(avCodecContext->codec_type == AVMEDIA_TYPE_VIDEO && 
+				videoStreamIndex < 0)
 			{
 				videoStreamIndex = index;
 			}
-			else
+			else if(avCodecContext->codec_type == AVMEDIA_TYPE_AUDIO && 
+				audioStreamIndex < 0)
 			{
 				audioStreamIndex = index;
 			}
