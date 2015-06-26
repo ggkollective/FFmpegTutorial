@@ -30,7 +30,8 @@ static int openInputFile()
 	for(index = 0; index < inAVFormatContext->nb_streams; index++)
 	{
 		AVCodecContext* avCodecContext = inAVFormatContext->streams[index]->codec;
-		if(avCodecContext->codec_type == AVMEDIA_TYPE_VIDEO || avCodecContext->codec_type == AVMEDIA_TYPE_AUDIO)
+		if(avCodecContext->codec_type == AVMEDIA_TYPE_VIDEO || 
+			avCodecContext->codec_type == AVMEDIA_TYPE_AUDIO)
 		{
 			// 코덱 ID를 통해 FFmpeg 라이브러리가 자동으로 코덱을 찾도록 합니다.
 			AVCodec* decoder = avcodec_find_decoder(avCodecContext->codec_id);
@@ -75,7 +76,8 @@ static void release()
 		for(index = 0; index < inAVFormatContext->nb_streams; index++)
 		{
 			AVCodecContext* avCodecContext = inAVFormatContext->streams[index]->codec;
-			if(avCodecContext->codec_type == AVMEDIA_TYPE_VIDEO || avCodecContext->codec_type == AVMEDIA_TYPE_AUDIO)
+			if(avCodecContext->codec_type == AVMEDIA_TYPE_VIDEO || 
+				avCodecContext->codec_type == AVMEDIA_TYPE_AUDIO)
 			{
 				avcodec_close(avCodecContext);
 			}
