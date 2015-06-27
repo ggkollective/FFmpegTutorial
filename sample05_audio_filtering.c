@@ -22,8 +22,10 @@ int outAudioStreamIndex = -1;
 // 필터 컨텍스트
 AVFilterContext* audioBufferSrcContext = NULL;
 AVFilterContext* audioBufferSinkContext = NULL;
-AVFilterInOut *inputs, *outputs;
 AVFilterGraph* filterGraph = NULL;
+
+#define OUTPUT_SAMPLE_RATE 	44100
+#define OUTPUT_CHANNELS 	1
 
 static int openInputFile()
 {
@@ -83,7 +85,6 @@ static int createOutputFile()
 	AVCodecContext* outCodecContext = NULL;
 	AVCodec* encoder = NULL;
 
-
 	int returnCode = avformat_alloc_output_context2(&outAVFormatContext, NULL, NULL, outFileName);
 	if(returnCode < 0)
 	{
@@ -111,9 +112,9 @@ static int createOutputFile()
 
 			outCodecContext = outStream->codec;
 
-			outCodecContext->sample_rate = inCodecContext->sample_rate;
-			outCodecContext->channel_layout = inCodecContext->channel_layout;
-			outCodecContext->channels = av_get_channel_layout_nb_channels(inCodecContext->channel_layout);
+			outCodecContext->sample_rate = OUTPUT_SAMPLE_RATE;
+			outCodecContext->channels = OUTPUT_CHANNELS;
+			outCodecContext->channel_layout = av_get_default_channel_layout(outCodecContext->channels);
 
 			// 인코더에서 지원하는 포맷 중 가장 첫번째를 사용합니다. 
 			outCodecContext->sample_fmt = encoder->sample_fmts[0];
@@ -137,13 +138,6 @@ static int createOutputFile()
 		}
 	}
 
-	returnCode = avformat_write_header(outAVFormatContext, NULL);
-	if(returnCode < 0)
-	{
-		fprintf(stderr, "Failed writing header into output file\n");
-		return -5;	
-	}
-
 	return 0;
 }
 
@@ -151,10 +145,9 @@ static int initAudioFilter()
 {
 	AVStream* inAudioStream = inAVFormatContext->streams[inAudioStreamIndex];
 	AVStream* outAudioStream = outAVFormatContext->streams[outAudioStreamIndex];
-
 	AVCodecContext* inAudioCodecContext = inAudioStream->codec;
 	AVCodecContext* outAudioCodecContext = outAudioStream->codec;
-
+	AVFilterInOut *inputs, *outputs;
 	char args[512];
 	int returnCode;
 
@@ -176,7 +169,6 @@ static int initAudioFilter()
 	}
 	
 	// In 필터 설정
-
 	snprintf(args, sizeof(args), "time_base=%d/%d:sample_rate=%d:sample_fmt=%s:channel_layout=0x%"PRIx64
 		, inAudioStream->time_base.num, inAudioStream->time_base.den
 		, inAudioCodecContext->sample_rate
@@ -186,13 +178,15 @@ static int initAudioFilter()
 	returnCode = avfilter_graph_create_filter(&audioBufferSrcContext, avfilter_get_by_name("abuffer"), "in", args, NULL, filterGraph);
 	if(returnCode < 0)
 	{
+		fprintf(stderr, "Cannot create audio buffer source\n");
 		return -3;
 	}
 
 	// src -> input
-	returnCode = avfilter_link(audioBufferSrcContext, 0, inputs->filter_ctx, inputs->pad_idx);
+	returnCode = avfilter_link(audioBufferSrcContext, 0, inputs->filter_ctx, 0);
 	if(returnCode < 0)
 	{
+		fprintf(stderr, "Cannot link audio buffer source\n");
 		return -4;
 	}
 
@@ -202,6 +196,7 @@ static int initAudioFilter()
 	returnCode = avfilter_graph_create_filter(&audioBufferSinkContext, avfilter_get_by_name("abuffersink"), "out", NULL, NULL, filterGraph);
 	if(returnCode < 0)
 	{
+		fprintf(stderr, "Cannot create audio buffer sink\n");
 		return -3;
 	}
 
@@ -215,6 +210,7 @@ static int initAudioFilter()
 	returnCode = avfilter_graph_create_filter(&aformatFilter, avfilter_get_by_name("aformat"), "aformat", args, NULL, filterGraph);
 	if(returnCode < 0)
 	{
+		fprintf(stderr, "Cannot create audio format filter\n");
 		return -4;
 	}
 
@@ -222,6 +218,7 @@ static int initAudioFilter()
 	returnCode = avfilter_link(outputs->filter_ctx, 0, aformatFilter, 0);
 	if(returnCode < 0)
 	{
+		fprintf(stderr, "Cannot link audio format filter\n");
 		return -4;
 	}
 
@@ -229,12 +226,14 @@ static int initAudioFilter()
 	returnCode = avfilter_link(aformatFilter, 0, audioBufferSinkContext, 0);
 	if(returnCode < 0)
 	{
+		fprintf(stderr, "Cannot link audio format filter\n");
 		return -4;
 	}
 
 	returnCode = avfilter_graph_config(filterGraph, NULL);
 	if(returnCode < 0)
 	{
+		fprintf(stderr, "Failed to configure audio filter context\n");
 		return -5;
 	}
 
@@ -246,23 +245,32 @@ static int initAudioFilter()
 
 static void release()
 {
+	unsigned int index;
+
 	if(inAVFormatContext != NULL)
 	{
-		avformat_close_input(&inAVFormatContext);
-	}
-
-	unsigned int index;
-	for(index = 0; index < outAVFormatContext->nb_streams; index++)
-	{
-		AVCodecContext* avCodecContext = outAVFormatContext->streams[index]->codec;
-		if(avCodecContext != NULL)
+		for(index = 0; index < inAVFormatContext->nb_streams; index++)
 		{
-			avcodec_close(avCodecContext);
+			AVCodecContext* avCodecContext = inAVFormatContext->streams[index]->codec;
+			if(avCodecContext->codec_type == AVMEDIA_TYPE_AUDIO)
+			{
+				avcodec_close(avCodecContext);
+			}
 		}
+
+		avformat_close_input(&inAVFormatContext);
 	}
 
 	if(outAVFormatContext != NULL)
 	{
+		for(index = 0; index < outAVFormatContext->nb_streams; index++)
+		{
+			AVCodecContext* avCodecContext = outAVFormatContext->streams[index]->codec;
+			if(avCodecContext != NULL)
+			{
+				avcodec_close(avCodecContext);
+			}
+		}
 		avformat_free_context(outAVFormatContext);
 	}
 
@@ -364,6 +372,9 @@ int main(int argc, char* argv[])
 			returnCode = decodePacket(inCodecContext, streamType, &packet, &decodedFrame, &gotFrame);
 			if(gotFrame)
 			{
+				fprintf(stdout, "[before filtering] fmt : %d / sample_rate : %d / channels : %d\n"
+					, (int)decodedFrame->format, decodedFrame->sample_rate, decodedFrame->channels);
+
 				returnCode = av_buffersrc_add_frame(audioBufferSrcContext, decodedFrame);
 				if(returnCode < 0)
 				{
@@ -378,6 +389,9 @@ int main(int argc, char* argv[])
 					{
 						break;
 					}
+
+					fprintf(stdout, "[after filtering] fmt : %d / sample_rate : %d / channels : %d\n"
+						, (int)filteredFrame->format, filteredFrame->sample_rate, filteredFrame->channels);
 
 					av_frame_unref(filteredFrame);
 				}
