@@ -157,11 +157,6 @@ static int initAudioFilter()
 		return -1;
 	}
 
-	if(inAudioCodecContext->channel_layout == 0)
-	{
-		inAudioCodecContext->channel_layout = av_get_default_channel_layout(inAudioCodecContext->channels);
-	}
-
 	returnCode = avfilter_graph_parse2(filterGraph, "anull", &inputs, &outputs);
 	if(returnCode < 0)
 	{
