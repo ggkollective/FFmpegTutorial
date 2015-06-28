@@ -61,10 +61,13 @@ static int openInputFile(const char* fileName)
 static int createOutputFile(const char* fileName)
 {
 	unsigned int index;
+	int streamIndex;
 	int returnCode;
 
 	outputFile.avFormatContext = NULL;
 	outputFile.fileName = fileName;
+	outputFile.audioIndex = -1;
+	outputFile.videoIndex = -1;
 
 	returnCode = avformat_alloc_output_context2(&outputFile.avFormatContext, NULL, NULL, outputFile.fileName);
 	if(returnCode < 0)
@@ -73,6 +76,8 @@ static int createOutputFile(const char* fileName)
 		return -1;
 	}
 
+	// 스트림 인덱스는 0부터 시작합니다.
+	streamIndex = 0;
 	// INPUT 파일에 있는 컨텍스트를 복사하는 과정입니다.
 	for(index = 0; index < inputFile.avFormatContext->nb_streams; index++)
 	{
@@ -105,6 +110,15 @@ static int createOutputFile(const char* fileName)
 			if(outputFile.avFormatContext->oformat->flags & AVFMT_GLOBALHEADER)
 			{
 				outCodecContext->flags |= CODEC_FLAG_GLOBAL_HEADER;
+			}
+
+			if(index == inputFile.videoIndex)
+			{
+				outputFile.videoIndex = streamIndex++;
+			}
+			else
+			{
+				outputFile.audioIndex = streamIndex++;
 			}
 		} // if
 	} // for
@@ -178,6 +192,7 @@ int main(int argc, char* argv[])
 	av_dump_format(outputFile.avFormatContext, 0, outputFile.fileName, 1);
 
 	AVPacket packet;
+	int streamIndex;
 
 	while(1)
 	{
@@ -196,9 +211,13 @@ int main(int argc, char* argv[])
 		}
 
 		AVStream* inAVStream = inputFile.avFormatContext->streams[packet.stream_index];
-		AVStream* outAVtStream = outputFile.avFormatContext->streams[packet.stream_index];
+		streamIndex = (packet.stream_index == inputFile.videoIndex) ? 
+						outputFile.videoIndex : outputFile.audioIndex;
+		AVStream* outAVStream = outputFile.avFormatContext->streams[streamIndex];
 
-		av_packet_rescale_ts(&packet, inAVStream->time_base, outAVtStream->time_base);
+		av_packet_rescale_ts(&packet, inAVStream->time_base, outAVStream->time_base);
+
+		packet.stream_index = streamIndex;
 
 		returnCode = av_interleaved_write_frame(outputFile.avFormatContext, &packet);
 		if(returnCode < 0)
