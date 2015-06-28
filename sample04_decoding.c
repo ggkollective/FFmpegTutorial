@@ -4,11 +4,15 @@
 #include <libavutil/avutil.h>
 #include <stdio.h>
 
-AVFormatContext* inAVFormatContext = NULL;
-const char* inFileName;
+typedef struct _FileContext
+{
+	AVFormatContext* avFormatContext;
+	const char* fileName;
+	int videoIndex;
+	int audioIndex;
+} FileContext;
 
-int videoStreamIndex = -1;
-int audioStreamIndex = -1;
+static FileContext inputFile;
 
 static int openDecoder(AVCodecContext* avCodecContext)
 {
@@ -30,27 +34,34 @@ static int openDecoder(AVCodecContext* avCodecContext)
 	return 0;
 }
 
-static int openInputFile()
+static int openInputFile(const char* fileName)
 {
 	unsigned int index;
-	int returnCode = avformat_open_input(&inAVFormatContext, inFileName, NULL, NULL);
+	int returnCode;
+
+	inputFile.avFormatContext = NULL;
+	inputFile.fileName = fileName;
+	inputFile.audioIndex = -1;
+	inputFile.videoIndex = -1;
+
+	returnCode = avformat_open_input(&inputFile.avFormatContext, inputFile.fileName, NULL, NULL);
 	if(returnCode < 0)
 	{
-		fprintf(stderr, "Could not open input file %s\n", inFileName);
+		fprintf(stderr, "Could not open input file %s\n", inputFile.fileName);
 		return -1;
 	}
 
-	returnCode = avformat_find_stream_info(inAVFormatContext, NULL);
+	returnCode = avformat_find_stream_info(inputFile.avFormatContext, NULL);
 	if(returnCode < 0)
 	{
 		fprintf(stderr, "Failed to retrieve input stream information\n");
 		return -2;
 	}
 
-	for(index = 0; index < inAVFormatContext->nb_streams; index++)
+	for(index = 0; index < inputFile.avFormatContext->nb_streams; index++)
 	{
-		AVCodecContext* avCodecContext = inAVFormatContext->streams[index]->codec;
-		if(avCodecContext->codec_type == AVMEDIA_TYPE_AUDIO && audioStreamIndex < 0)
+		AVCodecContext* avCodecContext = inputFile.avFormatContext->streams[index]->codec;
+		if(avCodecContext->codec_type == AVMEDIA_TYPE_VIDEO && inputFile.videoIndex < 0)
 		{
 			returnCode = openDecoder(avCodecContext);
 			if(returnCode < 0)
@@ -58,9 +69,9 @@ static int openInputFile()
 				break;
 			}
 
-			audioStreamIndex = index;
+			inputFile.videoIndex = index;
 		}
-		else if(avCodecContext->codec_type == AVMEDIA_TYPE_VIDEO && videoStreamIndex < 0)
+		else if(avCodecContext->codec_type == AVMEDIA_TYPE_AUDIO && inputFile.audioIndex < 0)
 		{
 			returnCode = openDecoder(avCodecContext);
 			if(returnCode < 0)
@@ -68,11 +79,11 @@ static int openInputFile()
 				break;
 			}
 
-			videoStreamIndex = index;
+			inputFile.audioIndex = index;
 		}
-	}
+	} // for
 
-	if(videoStreamIndex < 0 && audioStreamIndex < 0)
+	if(inputFile.audioIndex < 0 && inputFile.audioIndex < 0)
 	{
 		fprintf(stderr, "Failed to retrieve input stream information\n");
 		return -3;
@@ -83,20 +94,19 @@ static int openInputFile()
 
 static void release()
 {
-	if(inAVFormatContext != NULL)
+	if(inputFile.avFormatContext != NULL)
 	{
 		unsigned int index;
-		for(index = 0; index < inAVFormatContext->nb_streams; index++)
+		for(index = 0; index < inputFile.avFormatContext->nb_streams; index++)
 		{
-			AVCodecContext* avCodecContext = inAVFormatContext->streams[index]->codec;
-			if(avCodecContext->codec_type == AVMEDIA_TYPE_VIDEO || 
-				avCodecContext->codec_type == AVMEDIA_TYPE_AUDIO)
+			AVCodecContext* avCodecContext = inputFile.avFormatContext->streams[index]->codec;
+			if(index == inputFile.videoIndex || index == inputFile.audioIndex)
 			{
 				avcodec_close(avCodecContext);
 			}
 		}
 
-		avformat_close_input(&inAVFormatContext);
+		avformat_close_input(&inputFile.avFormatContext);
 	}
 }
 
@@ -129,8 +139,7 @@ int main(int argc, char* argv[])
 		exit(EXIT_SUCCESS);
 	}
 
-	inFileName = argv[1];
-	returnCode = openInputFile();
+	returnCode = openInputFile(argv[1]);
 	if(returnCode < 0)
 	{
 		release();
@@ -148,14 +157,14 @@ int main(int argc, char* argv[])
 
 	while(1)
 	{	
-		returnCode = av_read_frame(inAVFormatContext, &packet);
+		returnCode = av_read_frame(inputFile.avFormatContext, &packet);
 		if(returnCode == AVERROR_EOF)
 		{
 			fprintf(stdout, "End of frame\n");
 			break;
 		}
 
-		AVCodecContext* avCodecContext = inAVFormatContext->streams[packet.stream_index]->codec;
+		AVCodecContext* avCodecContext = inputFile.avFormatContext->streams[packet.stream_index]->codec;
 		if(avCodecContext == NULL) continue;
 		
 		const enum AVMediaType streamType = avCodecContext->codec_type;
@@ -181,10 +190,10 @@ int main(int argc, char* argv[])
 			}
 
 			av_frame_unref(decodedFrame);
-		}
+		} // if
 
 		av_free_packet(&packet);
-	}
+	} // while
 
 	av_frame_free(&decodedFrame);
 
