@@ -73,6 +73,7 @@ static int createOutputFile(const char* fileName)
 		return -1;
 	}
 
+	// INPUT 파일에 있는 컨텍스트를 복사하는 과정입니다.
 	for(index = 0; index < inputFile.avFormatContext->nb_streams; index++)
 	{
 		// Input 파일로부터 읽어드린 스트림만 추가합니다.
@@ -118,6 +119,7 @@ static int createOutputFile(const char* fileName)
 		}
 	}
 
+	// 컨테이너의 헤더파일을 쓰는 함수입니다.
 	returnCode = avformat_write_header(outputFile.avFormatContext, NULL);
 	if(returnCode < 0)
 	{

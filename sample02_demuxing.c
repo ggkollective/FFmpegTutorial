@@ -85,6 +85,7 @@ int main(int argc, char* argv[])
 		exit(EXIT_SUCCESS);
 	}
 
+	// AVPacket은 코덱으로 압축된 스트림 데이터를 저장하는데 사용됩니다.
 	AVPacket packet;
 
 	while(1)
@@ -92,6 +93,7 @@ int main(int argc, char* argv[])
 		returnCode = av_read_frame(inputFile.avFormatContext, &packet);
 		if(returnCode == AVERROR_EOF)
 		{
+			// 더 이상 읽어올 패킷이 없습니다.
 			fprintf(stdout, "End of frame\n");
 			break;
 		}

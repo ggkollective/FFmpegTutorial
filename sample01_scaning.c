@@ -18,6 +18,7 @@ static int openInputFile(const char* fileName)
 	inputFile.avFormatContext = NULL;
 	inputFile.fileName = fileName;
 
+	// 주어진 파일 이름으로부터 AVFormatContext를 가져옵니다. 
 	returnCode = avformat_open_input(&inputFile.avFormatContext, inputFile.fileName, NULL, NULL);
 	if(returnCode < 0)
 	{
@@ -25,6 +26,7 @@ static int openInputFile(const char* fileName)
 		return -1;
 	}
 
+	//주어진 AVFormatContext로부터 유효한 스트림이 있는지 찾습니다.
 	returnCode = avformat_find_stream_info(inputFile.avFormatContext, NULL);
 	if(returnCode < 0)
 	{
@@ -32,6 +34,7 @@ static int openInputFile(const char* fileName)
 		return -2;
 	}
 
+	// avFormatContext->nb_streams : 컨테이너가 저장하고 있는 총 스트림 갯수
 	for(index = 0; index < inputFile.avFormatContext->nb_streams; index++)
 	{
 		AVCodecContext* avCodecContext = inputFile.avFormatContext->streams[index]->codec;

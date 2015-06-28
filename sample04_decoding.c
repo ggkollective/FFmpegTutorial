@@ -114,13 +114,13 @@ static int decodePacket(AVCodecContext* avCodecContext, AVPacket* packet, AVFram
 {
 	int (*decodeFunc)(AVCodecContext *, AVFrame *, int *, const AVPacket *);
 	int decodedPacketSize;
-	
-	*gotFrame = 0;
 
+	// 비디오인지 오디오인지에 따라 디코딩할 함수를 정합니다.
 	decodeFunc = (avCodecContext->codec_type == AVMEDIA_TYPE_VIDEO) ? avcodec_decode_video2 : avcodec_decode_audio4;
 	decodedPacketSize = decodeFunc(avCodecContext, *frame, gotFrame, packet);
 	if(*gotFrame)
 	{
+		// packet에 있는 PTS와 DTS를 자동으로 frame으로 넘겨주는 작업입니다.
 		(*frame)->pts = av_frame_get_best_effort_timestamp(*frame);
 	}
 
@@ -146,6 +146,7 @@ int main(int argc, char* argv[])
 		exit(EXIT_SUCCESS);
 	}
 
+	// AVFrame은 디코딩된, 즉 압축되지 않은 raw 데이터를 담는데 사용합니다.
 	AVFrame* decodedFrame = av_frame_alloc();
 	if(decodedFrame == NULL)
 	{
@@ -154,7 +155,8 @@ int main(int argc, char* argv[])
 	}
 	
 	AVPacket packet;
-
+	int gotFrame;
+	
 	while(1)
 	{	
 		returnCode = av_read_frame(inputFile.avFormatContext, &packet);
@@ -168,7 +170,7 @@ int main(int argc, char* argv[])
 		if(avCodecContext == NULL) continue;
 		
 		const enum AVMediaType streamType = avCodecContext->codec_type;
-		int gotFrame;
+		gotFrame = 0;
 
 		returnCode = decodePacket(avCodecContext, &packet, &decodedFrame, &gotFrame);
 		if(returnCode >= 0 && gotFrame)
