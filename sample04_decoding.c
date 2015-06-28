@@ -10,6 +10,26 @@ const char* inFileName;
 int videoStreamIndex = -1;
 int audioStreamIndex = -1;
 
+static int openDecoder(AVCodecContext* avCodecContext)
+{
+	// 코덱 ID를 통해 FFmpeg 라이브러리가 자동으로 코덱을 찾도록 합니다.
+	AVCodec* decoder = avcodec_find_decoder(avCodecContext->codec_id);
+	if(decoder == NULL)
+	{
+		fprintf(stderr, "Could not find decoder for stream #%d\n", index);
+		return -1;
+	}
+
+	// 찾아낸 디코더를 통해 코덱을 엽니다.
+	if(avcodec_open2(avCodecContext, decoder, NULL) < 0)
+	{
+		fprintf(stderr, "Failed opening codec for stream #%d\n", index);
+		return -2;
+	}
+
+	return 0;
+}
+
 static int openInputFile()
 {
 	unsigned int index;
@@ -30,34 +50,25 @@ static int openInputFile()
 	for(index = 0; index < inAVFormatContext->nb_streams; index++)
 	{
 		AVCodecContext* avCodecContext = inAVFormatContext->streams[index]->codec;
-		if(avCodecContext->codec_type == AVMEDIA_TYPE_VIDEO || 
-			avCodecContext->codec_type == AVMEDIA_TYPE_AUDIO)
+		if(avCodecContext->codec_type == AVMEDIA_TYPE_AUDIO && audioStreamIndex < 0)
 		{
-			// 코덱 ID를 통해 FFmpeg 라이브러리가 자동으로 코덱을 찾도록 합니다.
-			AVCodec* decoder = avcodec_find_decoder(avCodecContext->codec_id);
-			if(decoder == NULL)
+			returnCode = openDecoder(avCodecContext);
+			if(returnCode < 0)
 			{
-				fprintf(stderr, "Could not find decoder for stream #%d\n", index);
 				break;
 			}
 
-			// 찾아낸 디코더를 통해 코덱을 엽니다.
-			if(avcodec_open2(avCodecContext, decoder, NULL) < 0)
+			audioStreamIndex = index;
+		}
+		else if(avCodecContext->codec_type == AVMEDIA_TYPE_VIDEO && videoStreamIndex < 0)
+		{
+			returnCode = openDecoder(avCodecContext);
+			if(returnCode < 0)
 			{
-				fprintf(stderr, "Failed opening codec for stream #%d\n", index);
 				break;
 			}
 
-			if(avCodecContext->codec_type == AVMEDIA_TYPE_VIDEO && 
-				videoStreamIndex < 0)
-			{
-				videoStreamIndex = index;
-			}
-			else if(avCodecContext->codec_type == AVMEDIA_TYPE_AUDIO && 
-				audioStreamIndex < 0)
-			{
-				audioStreamIndex = index;
-			}
+			videoStreamIndex = index;
 		}
 	}
 
