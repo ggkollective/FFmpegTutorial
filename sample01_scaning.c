@@ -12,29 +12,29 @@ static FileContext inputFile;
 
 static int openInputFile(const char* fileName)
 {
-	AVFormatContext* avFormatContext = inputFile.avFormatContext;
 	unsigned int index;
 	int returnCode;
 
-	avFormatContext = NULL;
+	inputFile.avFormatContext = NULL;
 	inputFile.fileName = fileName;
-	returnCode = avformat_open_input(&avFormatContext, inputFile.fileName, NULL, NULL);
+
+	returnCode = avformat_open_input(&inputFile.avFormatContext, inputFile.fileName, NULL, NULL);
 	if(returnCode < 0)
 	{
 		fprintf(stderr, "Could not open input file %s\n", inputFile.fileName);
 		return -1;
 	}
 
-	returnCode = avformat_find_stream_info(avFormatContext, NULL);
+	returnCode = avformat_find_stream_info(inputFile.avFormatContext, NULL);
 	if(returnCode < 0)
 	{
 		fprintf(stderr, "Failed to retrieve input stream information\n");
 		return -2;
 	}
 
-	for(index = 0; index < avFormatContext->nb_streams; index++)
+	for(index = 0; index < inputFile.avFormatContext->nb_streams; index++)
 	{
-		AVCodecContext* avCodecContext = avFormatContext->streams[index]->codec;
+		AVCodecContext* avCodecContext = inputFile.avFormatContext->streams[index]->codec;
 		if(avCodecContext->codec_type == AVMEDIA_TYPE_VIDEO)
 		{
 			fprintf(stdout, "------- Video info -------\n");
