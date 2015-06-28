@@ -188,22 +188,24 @@ int main(int argc, char* argv[])
 			break;
 		}
 
-		if(packet.stream_index == inputFile.videoIndex || packet.stream_index == inputFile.audioIndex)
+		if(packet.stream_index != inputFile.videoIndex && 
+			packet.stream_index != inputFile.audioIndex)
 		{
-			AVStream* inAVStream = inputFile.avFormatContext->streams[packet.stream_index];
-			AVStream* outAVtStream = outputFile.avFormatContext->streams[packet.stream_index];
+			av_free_packet(&packet);
+			continue;
+		}
 
-			av_packet_rescale_ts(&packet, inAVStream->time_base, outAVtStream->time_base);
+		AVStream* inAVStream = inputFile.avFormatContext->streams[packet.stream_index];
+		AVStream* outAVtStream = outputFile.avFormatContext->streams[packet.stream_index];
 
-			returnCode = av_interleaved_write_frame(outputFile.avFormatContext, &packet);
-			if(returnCode < 0)
-			{
-				fprintf(stderr, "Error occurred when writing packet into file\n");
-				break;
-			}
-		} // if
+		av_packet_rescale_ts(&packet, inAVStream->time_base, outAVtStream->time_base);
 
-		av_free_packet(&packet);
+		returnCode = av_interleaved_write_frame(outputFile.avFormatContext, &packet);
+		if(returnCode < 0)
+		{
+			fprintf(stderr, "Error occurred when writing packet into file\n");
+			break;
+		}		
 	} // while
 
 	// 파일을 쓰는 시점에서 마무리하지 못한 정보를 정리하는 시점입니다.

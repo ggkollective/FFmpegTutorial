@@ -167,9 +167,20 @@ int main(int argc, char* argv[])
 			break;
 		}
 
+		if(packet.stream_index != inputFile.videoIndex && 
+			packet.stream_index != inputFile.audioIndex)
+		{
+			av_free_packet(&packet);
+			continue;
+		}
+
 		AVCodecContext* avCodecContext = inputFile.avFormatContext->streams[packet.stream_index]->codec;
-		if(avCodecContext == NULL) continue;
-		
+		if(avCodecContext == NULL)
+		{
+			av_free_packet(&packet);
+			continue;
+		}
+
 		const enum AVMediaType streamType = avCodecContext->codec_type;
 		gotFrame = 0;
 
