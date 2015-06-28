@@ -72,6 +72,9 @@ int main(int argc, char* argv[])
 
 	av_register_all();
 
+	// FFmpeg 라이브러리 레벨에서 디버깅 로그를 출력하도록 합니다.
+	av_log_set_level(AV_LOG_DEBUG);
+
 	if(argc < 2)
 	{
 		fprintf(stderr, "usage : %s <input>\n", argv[0]);

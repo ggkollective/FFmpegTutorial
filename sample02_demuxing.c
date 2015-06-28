@@ -71,6 +71,7 @@ int main(int argc, char* argv[])
 	int returnCode;
 
 	av_register_all();
+	av_log_set_level(AV_LOG_DEBUG);
 
 	if(argc < 2)
 	{
