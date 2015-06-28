@@ -6,8 +6,8 @@ typedef struct _FileContext
 {
 	AVFormatContext* avFormatContext;
 	const char* fileName;
-	int audioIndex;
 	int videoIndex;
+	int audioIndex;
 } FileContext;
 
 static FileContext inputFile;
@@ -19,8 +19,8 @@ static int openInputFile(const char* fileName)
 
 	inputFile.avFormatContext = NULL;
 	inputFile.fileName = fileName;
-	inputFile.audioIndex = -1;
 	inputFile.videoIndex = -1;
+	inputFile.audioIndex = -1;
 
 	returnCode = avformat_open_input(&inputFile.avFormatContext, inputFile.fileName, NULL, NULL);
 	if(returnCode < 0)
