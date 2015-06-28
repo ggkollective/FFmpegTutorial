@@ -25,12 +25,9 @@ typedef struct _FilterContext
 } FilterContext;
 
 static FileContext inputFile;
-
 static FilterContext audioFilterContext, videoFilterContext;
-
 static const int dstWidth = 480;
 static const int dstHeight = 320;
-
 static const int64_t dstChannelLayout = AV_CH_LAYOUT_MONO;
 static const int dstSamplerate = 32000;
 
