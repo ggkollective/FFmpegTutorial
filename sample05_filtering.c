@@ -53,7 +53,6 @@ static int openInputFile(const char* fileName)
 {
 	unsigned int index;
 	int returnCode;
-
 	inputFile.avFormatContext = NULL;
 	inputFile.fileName = fileName;
 	inputFile.audioIndex = -1;
@@ -134,10 +133,7 @@ static int initVideoFilter()
 		return -2;
 	}
 
-	//
 	// Input 필터 생성
-	//
-
 	// Buffer Source -> input 필터 생성
 	snprintf(args, sizeof(args), "time_base=%d/%d:video_size=%dx%d:pix_fmt=%d:pixel_aspect=%d/%d"
 		, avStream->time_base.num, avStream->time_base.den
@@ -166,10 +162,7 @@ static int initVideoFilter()
 		return -4;
 	}
 
-	//
 	// Output 필터 생성
-	//
-
 	// Buffer Sink 필터 생성
 	returnCode = avfilter_graph_create_filter(
 					&videoFilterContext.sinkContext
@@ -251,10 +244,7 @@ static int initAudioFilter()
 		return -2;
 	}
 
-	//
 	// Input 필터 생성
-	//
-
 	// Buffer Source -> input 필터 생성
 	snprintf(args, sizeof(args), "time_base=%d/%d:sample_rate=%d:sample_fmt=%s:channel_layout=0x%"PRIx64
 		, avStream->time_base.num, avStream->time_base.den
@@ -283,10 +273,7 @@ static int initAudioFilter()
 		return -4;
 	}
 
-	//
 	// Output 필터 생성
-	//
-
 	// Buffer Sink 필터 생성
 	returnCode = avfilter_graph_create_filter(
 					&audioFilterContext.sinkContext
@@ -377,12 +364,10 @@ static int decodePacket(AVCodecContext* avCodecContext, AVPacket* packet, AVFram
 	int (*decodeFunc)(AVCodecContext *, AVFrame *, int *, const AVPacket *);
 	int decodedPacketSize;
 
-	// 비디오인지 오디오인지에 따라 디코딩할 함수를 정합니다.
 	decodeFunc = (avCodecContext->codec_type == AVMEDIA_TYPE_VIDEO) ? avcodec_decode_video2 : avcodec_decode_audio4;
 	decodedPacketSize = decodeFunc(avCodecContext, *frame, gotFrame, packet);
 	if(*gotFrame)
 	{
-		// packet에 있는 PTS와 DTS를 자동으로 frame으로 넘겨주는 작업입니다.
 		(*frame)->pts = av_frame_get_best_effort_timestamp(*frame);
 	}
 
