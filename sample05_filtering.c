@@ -130,6 +130,7 @@ static int initVideoFilter()
 	returnCode = avfilter_graph_parse2(videoFilterContext.filterGraph, "null", &inputs, &outputs);
 	if(returnCode < 0)
 	{
+		fprintf(stderr, "Failed to parse video filtergraph\n");
 		return -2;
 	}
 
@@ -241,6 +242,7 @@ static int initAudioFilter()
 	returnCode = avfilter_graph_parse2(audioFilterContext.filterGraph, "anull", &inputs, &outputs);
 	if(returnCode < 0)
 	{
+		fprintf(stderr, "Failed to parse audio filtergraph\n");
 		return -2;
 	}
 
