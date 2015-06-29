@@ -25,7 +25,7 @@ typedef struct _FilterContext
 } FilterContext;
 
 static FileContext inputFile;
-static FilterContext audioFilterContext, videoFilterContext;
+static FilterContext videoFilterContext, audioFilterContext;
 static const int dstWidth = 480;
 static const int dstHeight = 320;
 static const int64_t dstChannelLayout = AV_CH_LAYOUT_MONO;
@@ -246,7 +246,7 @@ static int initAudioFilter()
 		return -2;
 	}
 
-	// Input 필터 생성
+	// Input 필터 생성 -----------------------------------
 	// Buffer Source -> input 필터 생성
 	snprintf(args, sizeof(args), "time_base=%d/%d:sample_rate=%d:sample_fmt=%s:channel_layout=0x%"PRIx64
 		, avStream->time_base.num, avStream->time_base.den
@@ -275,7 +275,7 @@ static int initAudioFilter()
 		return -4;
 	}
 
-	// Output 필터 생성
+	// Output 필터 생성 -----------------------------------
 	// Buffer Sink 필터 생성
 	returnCode = avfilter_graph_create_filter(
 					&audioFilterContext.sinkContext
