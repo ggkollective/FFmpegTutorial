@@ -36,13 +36,11 @@ static int openDecoder(AVCodecContext* avCodecContext)
 	AVCodec* decoder = avcodec_find_decoder(avCodecContext->codec_id);
 	if(decoder == NULL)
 	{
-		fprintf(stderr, "Could not find decoder for stream #%d\n", index);
 		return -1;
 	}
 
 	if(avcodec_open2(avCodecContext, decoder, NULL) < 0)
 	{
-		fprintf(stderr, "Failed opening codec for stream #%d\n", index);
 		return -2;
 	}
 
