@@ -11,7 +11,7 @@ typedef struct _FileContext
 
 static FileContext inputFile, outputFile;
 
-static int openInputFile(const char* fileName)
+static int open_input(const char* fileName)
 {
 	unsigned int index;
 	int ret;
@@ -55,7 +55,7 @@ static int openInputFile(const char* fileName)
 	return 0;
 }
 
-static int createOutputFile(const char* fileName)
+static int create_output(const char* fileName)
 {
 	unsigned int index;
 	int out_index;
@@ -168,14 +168,14 @@ int main(int argc, char* argv[])
 		exit(EXIT_SUCCESS);
 	}
 
-	ret = openInputFile(argv[1]);
+	ret = open_input(argv[1]);
 	if(ret < 0)
 	{
 		release();
 		exit(EXIT_SUCCESS);
 	}
 
-	ret = createOutputFile(argv[2]);
+	ret = create_output(argv[2]);
 	if(ret < 0)
 	{
 		release();
