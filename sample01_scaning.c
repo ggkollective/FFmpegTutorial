@@ -4,16 +4,16 @@
 
 static AVFormatContext* fmt_ctx = NULL;
 
-static int open_input(const char* file_name)
+static int open_input(const char* filename)
 {
 	unsigned int index;
 	int ret;
 
 	// 주어진 파일 이름으로부터 fmt_ctx를 가져옵니다. 
-	ret = avformat_open_input(&fmt_ctx, file_name, NULL, NULL);
+	ret = avformat_open_input(&fmt_ctx, filename, NULL, NULL);
 	if(ret < 0)
 	{
-		printf("Could not open input file %s\n", file_name);
+		printf("Could not open input file %s\n", filename);
 		return -1;
 	}
 

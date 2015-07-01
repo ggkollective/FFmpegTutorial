@@ -11,7 +11,7 @@ typedef struct _FileContext
 
 static FileContext input_ctx;
 
-static int open_input(const char* file_name)
+static int open_input(const char* filename)
 {
 	unsigned int index;
 	int ret;
@@ -19,10 +19,10 @@ static int open_input(const char* file_name)
 	input_ctx.fmt_ctx = NULL;
 	input_ctx.v_index = input_ctx.a_index = -1;
 
-	ret = avformat_open_input(&input_ctx.fmt_ctx, file_name, NULL, NULL);
+	ret = avformat_open_input(&input_ctx.fmt_ctx, filename, NULL, NULL);
 	if(ret < 0)
 	{
-		printf("Could not open input file %s\n", file_name);
+		printf("Could not open input file %s\n", filename);
 		return -1;
 	}
 
