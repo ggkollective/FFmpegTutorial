@@ -22,11 +22,7 @@ static int openInputFile(const char* fileName)
 	ret = avformat_open_input(&inputFile.fmt_ctx, fileName, NULL, NULL);
 	if(ret < 0)
 	{
-<<<<<<< HEAD
 		printf("Could not open input file %s\n", fileName);
-=======
-		fprintf(stderr, "Could not open input file %s\n", fileName);
->>>>>>> 0148f5cde032c22009c274b13313825dd2d8408a
 		return -1;
 	}
 
@@ -126,11 +122,7 @@ static int createOutputFile(const char* fileName)
 		// 실질적으로 파일을 오픈하는 시점입니다.
 		if(avio_open(&outputFile.fmt_ctx->pb, fileName, AVIO_FLAG_WRITE) < 0)
 		{
-<<<<<<< HEAD
 			printf("Failed to create output file %s\n", fileName);
-=======
-			fprintf(stderr, "Failed to create output file %s\n", fileName);
->>>>>>> 0148f5cde032c22009c274b13313825dd2d8408a
 			return -4;
 		}
 	}
