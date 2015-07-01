@@ -77,11 +77,7 @@ int main(int argc, char* argv[])
 	}
 
 	ret = open_input(argv[1]);
-	if(ret < 0)
-	{
-		release();
-		exit(EXIT_SUCCESS);
-	}
+	if(ret < 0) goto main_end;
 
 	// AVPacket은 코덱으로 압축된 스트림 데이터를 저장하는데 사용됩니다.
 	AVPacket pkt;
@@ -108,6 +104,7 @@ int main(int argc, char* argv[])
 		av_free_packet(&pkt);
 	} // while
 
+main_end:
 	release();
 
 	return 0;
