@@ -11,35 +11,35 @@
 
 typedef struct _FileContext
 {
-	AVFormatContext* avFormatContext;
-	const char* fileName;
-	int videoIndex;
-	int audioIndex;
+	AVFormatContext* fmt_ctx;
+	int v_index;
+	int a_index;
 } FileContext;
 
 typedef struct _FilterContext
 {
-	AVFilterGraph* filterGraph;
-	AVFilterContext* srcContext;
-	AVFilterContext* sinkContext;
+	AVFilterGraph* filter_graph;
+	AVFilterContext* src_ctx;
+	AVFilterContext* sink_ctx;
 } FilterContext;
 
 static FileContext inputFile;
-static FilterContext videoFilterContext, audioFilterContext;
-static const int dstWidth = 480;
-static const int dstHeight = 320;
-static const int64_t dstChannelLayout = AV_CH_LAYOUT_MONO;
-static const int dstSamplerate = 32000;
+static FilterContext vfilter_ctx, afilter_ctx;
 
-static int openDecoder(AVCodecContext* avCodecContext)
+static const int dst_width = 480;
+static const int dst_height = 320;
+static const int64_t dst_ch_layout = AV_CH_LAYOUT_MONO;
+static const int dst_sample_rate = 32000;
+
+static int open_decoder(AVCodecContext* codec_ctx)
 {
-	AVCodec* decoder = avcodec_find_decoder(avCodecContext->codec_id);
+	AVCodec* decoder = avcodec_find_decoder(codec_ctx->codec_id);
 	if(decoder == NULL)
 	{
 		return -1;
 	}
 
-	if(avcodec_open2(avCodecContext, decoder, NULL) < 0)
+	if(avcodec_open2(codec_ctx, decoder, NULL) < 0)
 	{
 		return -2;
 	}
@@ -47,88 +47,80 @@ static int openDecoder(AVCodecContext* avCodecContext)
 	return 0;
 }
 
-static int openInputFile(const char* fileName)
+static int open_input(const char* filename)
 {
 	unsigned int index;
-	int returnCode;
-	inputFile.avFormatContext = NULL;
-	inputFile.fileName = fileName;
-	inputFile.audioIndex = -1;
-	inputFile.videoIndex = -1;
+	int ret;
+	inputFile.fmt_ctx = NULL;
+	inputFile.a_index = inputFile.v_index = -1;
 
-	returnCode = avformat_open_input(&inputFile.avFormatContext, inputFile.fileName, NULL, NULL);
-	if(returnCode < 0)
+	ret = avformat_open_input(&inputFile.fmt_ctx, filename, NULL, NULL);
+	if(ret < 0)
 	{
-		fprintf(stderr, "Could not open input file %s\n", inputFile.fileName);
+		printf("Could not open input file %s\n", filename);
 		return -1;
 	}
 
-	returnCode = avformat_find_stream_info(inputFile.avFormatContext, NULL);
-	if(returnCode < 0)
+	ret = avformat_find_stream_info(inputFile.fmt_ctx, NULL);
+	if(ret < 0)
 	{
-		fprintf(stderr, "Failed to retrieve input stream information\n");
+		printf("Failed to retrieve input stream information\n");
 		return -2;
 	}
 
-	for(index = 0; index < inputFile.avFormatContext->nb_streams; index++)
+	for(index = 0; index < inputFile.fmt_ctx->nb_streams; index++)
 	{
-		AVCodecContext* avCodecContext = inputFile.avFormatContext->streams[index]->codec;
-		if(avCodecContext->codec_type == AVMEDIA_TYPE_VIDEO && inputFile.videoIndex < 0)
+		AVCodecContext* codec_ctx = inputFile.fmt_ctx->streams[index]->codec;
+		if(codec_ctx->codec_type == AVMEDIA_TYPE_VIDEO && inputFile.v_index < 0)
 		{
-			returnCode = openDecoder(avCodecContext);
-			if(returnCode < 0)
-			{
-				break;
-			}
+			ret = open_decoder(codec_ctx);
+			if(ret < 0)	break;
 
-			inputFile.videoIndex = index;
+			inputFile.v_index = index;
 		}
-		else if(avCodecContext->codec_type == AVMEDIA_TYPE_AUDIO && inputFile.audioIndex < 0)
+		else if(codec_ctx->codec_type == AVMEDIA_TYPE_AUDIO && inputFile.a_index < 0)
 		{
-			returnCode = openDecoder(avCodecContext);
-			if(returnCode < 0)
-			{
-				break;
-			}
+			ret = open_decoder(codec_ctx);
+			if(ret < 0) break;
 
-			inputFile.audioIndex = index;
+			inputFile.a_index = index;
 		}
 	} // for
 
-	if(inputFile.audioIndex < 0 && inputFile.audioIndex < 0)
+	if(inputFile.a_index < 0 && inputFile.a_index < 0)
 	{
-		fprintf(stderr, "Failed to retrieve input stream information\n");
+		printf("Failed to retrieve input stream information\n");
 		return -3;
 	}
 
 	return 0;
 }
 
-static int initVideoFilter()
+static int init_video_filter()
 {
-	AVStream* avStream = inputFile.avFormatContext->streams[inputFile.videoIndex];
-	AVCodecContext* avCodecContext = avStream->codec;
+	AVStream* avStream = inputFile.fmt_ctx->streams[inputFile.v_index];
+	AVCodecContext* codec_ctx = avStream->codec;
 	AVFilterContext* rescaleFilter;
 	AVFilterInOut *inputs, *outputs;
 	char args[512];
-	int returnCode;
+	int ret;
 
-	videoFilterContext.filterGraph = NULL;
-	videoFilterContext.srcContext = NULL;
-	videoFilterContext.sinkContext = NULL;
+	vfilter_ctx.filter_graph = NULL;
+	vfilter_ctx.src_ctx = NULL;
+	vfilter_ctx.sink_ctx = NULL;
 
 	// 필터그래프를 위한 메모리를 할당합니다.
-	videoFilterContext.filterGraph = avfilter_graph_alloc();
-	if(videoFilterContext.filterGraph == NULL)
+	vfilter_ctx.filter_graph = avfilter_graph_alloc();
+	if(vfilter_ctx.filter_graph == NULL)
 	{
 		return -1;
 	}
 
 	// 필터그래프에 input과 output을 연결
-	returnCode = avfilter_graph_parse2(videoFilterContext.filterGraph, "null", &inputs, &outputs);
-	if(returnCode < 0)
+	ret = avfilter_graph_parse2(vfilter_ctx.filter_graph, "null", &inputs, &outputs);
+	if(ret < 0)
 	{
-		fprintf(stderr, "Failed to parse video filtergraph\n");
+		printf("Failed to parse video filtergraph\n");
 		return -2;
 	}
 
@@ -136,111 +128,109 @@ static int initVideoFilter()
 	// Buffer Source -> input 필터 생성
 	snprintf(args, sizeof(args), "time_base=%d/%d:video_size=%dx%d:pix_fmt=%d:pixel_aspect=%d/%d"
 		, avStream->time_base.num, avStream->time_base.den
-		, avCodecContext->width, avCodecContext->height
-		, avCodecContext->pix_fmt
-		, avCodecContext->sample_aspect_ratio.num, avCodecContext->sample_aspect_ratio.den);
+		, codec_ctx->width, codec_ctx->height
+		, codec_ctx->pix_fmt
+		, codec_ctx->sample_aspect_ratio.num, codec_ctx->sample_aspect_ratio.den);
 
 	// Buffer Source 필터 생성
-	returnCode = avfilter_graph_create_filter(
-					&videoFilterContext.srcContext
+	ret = avfilter_graph_create_filter(
+					&vfilter_ctx.src_ctx
 					, avfilter_get_by_name("buffer")
-					, "in", args, NULL, videoFilterContext.filterGraph);
-	if(returnCode < 0)
+					, "in", args, NULL, vfilter_ctx.filter_graph);
+	if(ret < 0)
 	{
-		fprintf(stderr, "Cannot create video buffer source\n");
+		printf("Cannot create video buffer source\n");
 		return -3;
 	}
 
 	// Buffer Source 필터를 필터그래프의 input으로 연결합니다.
-	returnCode = avfilter_link(
-					videoFilterContext.srcContext,
-					0, inputs->filter_ctx, 0);
-	if(returnCode < 0)
+	ret = avfilter_link(vfilter_ctx.src_ctx, 0, inputs->filter_ctx, 0);
+	if(ret < 0)
 	{
-		fprintf(stderr, "Cannot link video buffer source\n");
+		printf("Cannot link video buffer source\n");
 		return -4;
 	}
 
 	// Output 필터 생성
 	// Buffer Sink 필터 생성
-	returnCode = avfilter_graph_create_filter(
-					&videoFilterContext.sinkContext
+	ret = avfilter_graph_create_filter(
+					&vfilter_ctx.sink_ctx
 					, avfilter_get_by_name("buffersink")
-					, "out", NULL, NULL, videoFilterContext.filterGraph);
-	if(returnCode < 0)
+					, "out", NULL, NULL, vfilter_ctx.filter_graph);
+	if(ret < 0)
 	{
-		fprintf(stderr, "Cannot create video buffer sink\n");
+		printf("Cannot create video buffer sink\n");
 		return -3;
 	}
 
 	// 비디오 프레임 해상도 변경을 위한 리스케일 필터 생성
-	snprintf(args, sizeof(args), "%d:%d", dstWidth, dstHeight);
+	snprintf(args, sizeof(args), "%d:%d", dst_width, dst_height);
 
-	returnCode = avfilter_graph_create_filter(
+	ret = avfilter_graph_create_filter(
 					&rescaleFilter
 					, avfilter_get_by_name("scale")
-					, "scale", args, NULL, videoFilterContext.filterGraph);
-	if(returnCode < 0)
+					, "scale", args, NULL, vfilter_ctx.filter_graph);
+	if(ret < 0)
 	{
-		fprintf(stderr, "Cannot create video scale filter\n");
+		printf("Cannot create video scale filter\n");
 		return -4;
 	}
 
 	// 필터그래프의 output을 aformat 필터로 연결합니다.
-	returnCode = avfilter_link(outputs->filter_ctx, 0, rescaleFilter, 0);
-	if(returnCode < 0)
+	ret = avfilter_link(outputs->filter_ctx, 0, rescaleFilter, 0);
+	if(ret < 0)
 	{
-		fprintf(stderr, "Cannot link video format filter\n");
+		printf("Cannot link video format filter\n");
 		return -4;
 	}
 
 	// aformat 필터는 Buffer Sink 필터와 연결합니다.
-	returnCode = avfilter_link(rescaleFilter, 0, videoFilterContext.sinkContext, 0);
-	if(returnCode < 0)
+	ret = avfilter_link(rescaleFilter, 0, vfilter_ctx.sink_ctx, 0);
+	if(ret < 0)
 	{
-		fprintf(stderr, "Cannot link video format filter\n");
+		printf("Cannot link video format filter\n");
 		return -4;
 	}
 
 	// 준비된 필터를 연결합니다.
-	returnCode = avfilter_graph_config(videoFilterContext.filterGraph, NULL);
-	if(returnCode < 0)
+	ret = avfilter_graph_config(vfilter_ctx.filter_graph, NULL);
+	if(ret < 0)
 	{
-		fprintf(stderr, "Failed to configure video filter context\n");
+		printf("Failed to configure video filter context\n");
 		return -5;
 	}
 
-	av_buffersink_set_frame_size(videoFilterContext.sinkContext, avCodecContext->frame_size);
+	av_buffersink_set_frame_size(vfilter_ctx.sink_ctx, codec_ctx->frame_size);
 
 	avfilter_inout_free(&inputs);
 	avfilter_inout_free(&outputs);
 }
 
-static int initAudioFilter()
+static int init_audio_filter()
 {
-	AVStream* avStream = inputFile.avFormatContext->streams[inputFile.audioIndex];
-	AVCodecContext* avCodecContext = avStream->codec;
+	AVStream* avStream = inputFile.fmt_ctx->streams[inputFile.a_index];
+	AVCodecContext* codec_ctx = avStream->codec;
 	AVFilterInOut *inputs, *outputs;
-	AVFilterContext* resampleFilter;
+	AVFilterContext* resample_filter;
 	char args[512];
-	int returnCode;
+	int ret;
 
-	audioFilterContext.filterGraph = NULL;
-	audioFilterContext.srcContext = NULL;
-	audioFilterContext.sinkContext = NULL;
+	afilter_ctx.filter_graph = NULL;
+	afilter_ctx.src_ctx = NULL;
+	afilter_ctx.sink_ctx = NULL;
 
 	// 필터그래프를 위한 메모리를 할당합니다.
-	audioFilterContext.filterGraph = avfilter_graph_alloc();
-	if(audioFilterContext.filterGraph == NULL)
+	afilter_ctx.filter_graph = avfilter_graph_alloc();
+	if(afilter_ctx.filter_graph == NULL)
 	{
 		return -1;
 	}
 
 	// 필터그래프와 함께 input과 output 필터를 생성
-	returnCode = avfilter_graph_parse2(audioFilterContext.filterGraph, "anull", &inputs, &outputs);
-	if(returnCode < 0)
+	ret = avfilter_graph_parse2(afilter_ctx.filter_graph, "anull", &inputs, &outputs);
+	if(ret < 0)
 	{
-		fprintf(stderr, "Failed to parse audio filtergraph\n");
+		printf("Failed to parse audio filtergraph\n");
 		return -2;
 	}
 
@@ -248,84 +238,82 @@ static int initAudioFilter()
 	// Buffer Source -> input 필터 생성
 	snprintf(args, sizeof(args), "time_base=%d/%d:sample_rate=%d:sample_fmt=%s:channel_layout=0x%"PRIx64
 		, avStream->time_base.num, avStream->time_base.den
-		, avCodecContext->sample_rate
-		, av_get_sample_fmt_name(avCodecContext->sample_fmt)
-		, avCodecContext->channel_layout);
+		, codec_ctx->sample_rate
+		, av_get_sample_fmt_name(codec_ctx->sample_fmt)
+		, codec_ctx->channel_layout);
 
 	// Buffer Source 필터 생성
-	returnCode = avfilter_graph_create_filter(
-					&audioFilterContext.srcContext
+	ret = avfilter_graph_create_filter(
+					&afilter_ctx.src_ctx
 					, avfilter_get_by_name("abuffer")
-					, "in", args, NULL, audioFilterContext.filterGraph);
-	if(returnCode < 0)
+					, "in", args, NULL, afilter_ctx.filter_graph);
+	if(ret < 0)
 	{
-		fprintf(stderr, "Cannot create audio buffer source\n");
+		printf("Cannot create audio buffer source\n");
 		return -3;
 	}
 
 	// Buffer Source 필터를 필터그래프의 input으로 연결합니다.
-	returnCode = avfilter_link(
-					audioFilterContext.srcContext,
-					0, inputs->filter_ctx, 0);
-	if(returnCode < 0)
+	ret = avfilter_link(afilter_ctx.src_ctx, 0, inputs->filter_ctx, 0);
+	if(ret < 0)
 	{
-		fprintf(stderr, "Cannot link audio buffer source\n");
+		printf("Cannot link audio buffer source\n");
 		return -4;
 	}
 
 	// Output 필터 생성 -----------------------------------
 	// Buffer Sink 필터 생성
-	returnCode = avfilter_graph_create_filter(
-					&audioFilterContext.sinkContext
+	ret = avfilter_graph_create_filter(
+					&afilter_ctx.sink_ctx
 					, avfilter_get_by_name("abuffersink")
-					, "out", NULL, NULL, audioFilterContext.filterGraph);
-	if(returnCode < 0)
+					, "out", NULL, NULL, afilter_ctx.filter_graph);
+	if(ret < 0)
 	{
-		fprintf(stderr, "Cannot create audio buffer sink\n");
+		printf("Cannot create audio buffer sink\n");
 		return -3;
 	}
 
 	// 오디오 프레임 포맷 변경을 위한 aformat 필터 생성
 	snprintf(args, sizeof(args), "sample_rates=%d:channel_layouts=0x%"PRIx64
-		, dstSamplerate
-		, dstChannelLayout);
+		, dst_sample_rate
+		, dst_ch_layout);
 
 	// aformat 필터를 생성합니다.
-	returnCode = avfilter_graph_create_filter(
-					&resampleFilter
+	ret = avfilter_graph_create_filter(
+					&resample_filter
 					, avfilter_get_by_name("aformat")
-					, "aformat", args, NULL, audioFilterContext.filterGraph);
-	if(returnCode < 0)
+					, "aformat", args, NULL, afilter_ctx.filter_graph);
+	if(ret < 0)
 	{
-		fprintf(stderr, "Cannot create audio format filter\n");
+		printf("Cannot create audio format filter\n");
 		return -4;
 	}
 
 	// 필터그래프의 output을 aformat 필터로 연결합니다.
-	returnCode = avfilter_link(outputs->filter_ctx, 0, resampleFilter, 0);
-	if(returnCode < 0)
+	ret = avfilter_link(outputs->filter_ctx, 0, resample_filter, 0);
+	if(ret < 0)
 	{
-		fprintf(stderr, "Cannot link audio format filter\n");
+		printf("Cannot link audio format filter\n");
 		return -4;
 	}
 
 	// aformat 필터는 Buffer Sink 필터와 연결합니다.
-	returnCode = avfilter_link(resampleFilter, 0, audioFilterContext.sinkContext, 0);
-	if(returnCode < 0)
+	ret = avfilter_link(resample_filter, 0, afilter_ctx.sink_ctx, 0);
+	if(ret < 0)
 	{
-		fprintf(stderr, "Cannot link audio format filter\n");
+		printf("Cannot link audio format filter\n");
 		return -4;
 	}
 
 	// 준비된 필터를 연결합니다.
-	returnCode = avfilter_graph_config(audioFilterContext.filterGraph, NULL);
-	if(returnCode < 0)
+	ret = avfilter_graph_config(afilter_ctx.filter_graph, NULL);
+	if(ret < 0)
 	{
-		fprintf(stderr, "Failed to configure audio filter context\n");
+		printf("Failed to configure audio filter context\n");
 		return -5;
 	}
 
-	av_buffersink_set_frame_size(audioFilterContext.sinkContext, avCodecContext->frame_size);
+	av_buffersink_set_frame_size(afilter_ctx.sink_ctx, codec_ctx->frame_size);
 
 	avfilter_inout_free(&inputs);
 	avfilter_inout_free(&outputs);
@@ -333,50 +321,50 @@ static int initAudioFilter()
 
 static void release()
 {
-	if(inputFile.avFormatContext != NULL)
+	if(inputFile.fmt_ctx != NULL)
 	{
 		unsigned int index;
-		for(index = 0; index < inputFile.avFormatContext->nb_streams; index++)
+		for(index = 0; index < inputFile.fmt_ctx->nb_streams; index++)
 		{
-			AVCodecContext* avCodecContext = inputFile.avFormatContext->streams[index]->codec;
-			if(index == inputFile.videoIndex || index == inputFile.audioIndex)
+			AVCodecContext* codec_ctx = inputFile.fmt_ctx->streams[index]->codec;
+			if(index == inputFile.v_index || index == inputFile.a_index)
 			{
-				avcodec_close(avCodecContext);
+				avcodec_close(codec_ctx);
 			}
 		}
 
-		avformat_close_input(&inputFile.avFormatContext);
+		avformat_close_input(&inputFile.fmt_ctx);
 	}
 
-	if(audioFilterContext.filterGraph != NULL)
+	if(afilter_ctx.filter_graph != NULL)
 	{
-		avfilter_graph_free(&audioFilterContext.filterGraph);
+		avfilter_graph_free(&afilter_ctx.filter_graph);
 	}
 
-	if(videoFilterContext.filterGraph != NULL)
+	if(vfilter_ctx.filter_graph != NULL)
 	{
-		avfilter_graph_free(&videoFilterContext.filterGraph);
+		avfilter_graph_free(&vfilter_ctx.filter_graph);
 	}
 }
 
-static int decodePacket(AVCodecContext* avCodecContext, AVPacket* packet, AVFrame** frame, int* gotFrame)
+static int decodePacket(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame** frame, int* got_frame)
 {
-	int (*decodeFunc)(AVCodecContext *, AVFrame *, int *, const AVPacket *);
-	int decodedPacketSize;
+	int (*decode_func)(AVCodecContext *, AVFrame *, int *, const AVPacket *);
+	int decoded_size;
 
-	decodeFunc = (avCodecContext->codec_type == AVMEDIA_TYPE_VIDEO) ? avcodec_decode_video2 : avcodec_decode_audio4;
-	decodedPacketSize = decodeFunc(avCodecContext, *frame, gotFrame, packet);
-	if(*gotFrame)
+	decode_func = (codec_ctx->codec_type == AVMEDIA_TYPE_VIDEO) ? avcodec_decode_video2 : avcodec_decode_audio4;
+	decoded_size = decode_func(codec_ctx, *frame, got_frame, pkt);
+	if(*got_frame)
 	{
 		(*frame)->pts = av_frame_get_best_effort_timestamp(*frame);
 	}
 
-	return decodedPacketSize;
+	return decoded_size;
 }
 
 int main(int argc, char* argv[])
 {
-	int returnCode;
+	int ret;
 
 	av_register_all();
 	avfilter_register_all();
@@ -384,126 +372,123 @@ int main(int argc, char* argv[])
 
 	if(argc < 2)
 	{
-		fprintf(stderr, "usage : %s <input>\n", argv[0]);
-		exit(EXIT_SUCCESS);
+		printf("usage : %s <input>\n", argv[0]);
+		return 0;
 	}
 
-	returnCode = openInputFile(argv[1]);
-	if(returnCode < 0)
+	ret = open_input(argv[1]);
+	if(ret < 0)
 	{
-		release();
-		exit(EXIT_SUCCESS);
+		goto main_end;
 	}
 
-	returnCode = initVideoFilter();
-	if(returnCode < 0)
+	ret = init_video_filter();
+	if(ret < 0)
 	{
-		release();
-		exit(EXIT_SUCCESS);
+		goto main_end;
 	}
 
-	returnCode = initAudioFilter();
-	if(returnCode < 0)
+	ret = init_audio_filter();
+	if(ret < 0)
 	{
-		release();
-		exit(EXIT_SUCCESS);
+		goto main_end;
 	}
 
-	AVFrame* decodedFrame = av_frame_alloc();
-	AVFrame* filteredFrame = av_frame_alloc();
-	if(decodedFrame == NULL || filteredFrame == NULL)
+	AVFrame* decoded_frame = av_frame_alloc();
+	if(decoded_frame == NULL)
 	{
-		release();
-		exit(EXIT_SUCCESS);
+		goto main_end;
+	}
+
+	AVFrame* filtered_frame = av_frame_alloc();
+	if(filtered_frame == NULL)
+	{
+		av_frame_free(&decoded_frame);
+		goto main_end;
 	}
 	
-	AVPacket packet;
-	int gotFrame;
+	AVPacket pkt;
+	int got_frame;
+	int stream_index;
 
 	while(1)
-	{	
-		returnCode = av_read_frame(inputFile.avFormatContext, &packet);
-		if(returnCode == AVERROR_EOF)
+	{
+		ret = av_read_frame(inputFile.fmt_ctx, &pkt);
+		if(ret == AVERROR_EOF)
 		{
-			fprintf(stdout, "End of frame\n");
+			printf("End of frame\n");
 			break;
 		}
 
-		if(packet.stream_index != inputFile.videoIndex && 
-			packet.stream_index != inputFile.audioIndex)
+		stream_index = pkt.stream_index;
+
+		if(stream_index != inputFile.v_index && stream_index != inputFile.a_index)
 		{
-			av_free_packet(&packet);
+			av_free_packet(&pkt);
 			continue;
 		}
 
-		AVCodecContext* avCodecContext = inputFile.avFormatContext->streams[packet.stream_index]->codec;
-		if(avCodecContext == NULL)
-		{
-			av_free_packet(&packet);
-			continue;
-		}
-		
-		const enum AVMediaType streamType = avCodecContext->codec_type;
-		gotFrame = 0;
+		AVCodecContext* codec_ctx = inputFile.fmt_ctx->streams[stream_index]->codec;
+		got_frame = 0;
 
-		returnCode = decodePacket(avCodecContext, &packet, &decodedFrame, &gotFrame);
-		if(returnCode >= 0 && gotFrame)
+		ret = decodePacket(codec_ctx, &pkt, &decoded_frame, &got_frame);
+		if(ret >= 0 && got_frame)
 		{
-			FilterContext* filterContext;
+			FilterContext* filter_ctx;
 			
-			if(streamType == AVMEDIA_TYPE_VIDEO)
+			if(stream_index == inputFile.v_index)
 			{
-				filterContext = &videoFilterContext;
-				fprintf(stdout, "[before] Video : resolution : %dx%d\n"
-					, decodedFrame->width, decodedFrame->height);
+				filter_ctx = &vfilter_ctx;
+				printf("[before] Video : resolution : %dx%d\n"
+					, decoded_frame->width, decoded_frame->height);
 			}
 			else
 			{
-				filterContext = &audioFilterContext;
-				fprintf(stdout, "[before] Audio : sample_rate : %d / channels : %d\n"
-					, decodedFrame->sample_rate, decodedFrame->channels);
+				filter_ctx = &afilter_ctx;
+				printf("[before] Audio : sample_rate : %d / channels : %d\n"
+					, decoded_frame->sample_rate, decoded_frame->channels);
 			}
 
 			// 필터에 프레임을 넣습니다.
-			returnCode = av_buffersrc_add_frame(filterContext->srcContext, decodedFrame);
-			if(returnCode < 0)
+			ret = av_buffersrc_add_frame(filter_ctx->src_ctx, decoded_frame);
+			if(ret < 0)
 			{
-				fprintf(stderr, "Error occurred when putting frame into filter context\n");
+				printf("Error occurred when putting frame into filter context\n");
 				break;
 			}
 
 			while(1)
 			{
 				// 필터링된 프레임을 가져옵니다. 결과값이 0보다 작으면 필터가 비어있는 상태입니다.
-				returnCode = av_buffersink_get_frame(filterContext->sinkContext, filteredFrame);
-				if(returnCode < 0)
+				ret = av_buffersink_get_frame(filter_ctx->sink_ctx, filtered_frame);
+				if(ret < 0)
 				{
 					break;
 				}
 
-				if(streamType == AVMEDIA_TYPE_VIDEO)
+				if(stream_index == inputFile.v_index)
 				{
-					fprintf(stdout, "[after] Video : resolution : %dx%d\n"
-						, filteredFrame->width, filteredFrame->height);
+					printf("[after] Video : resolution : %dx%d\n"
+						, filtered_frame->width, filtered_frame->height);
 				}
 				else
 				{
-					fprintf(stdout, "[after] Audio : sample_rate : %d / channels : %d\n"
-						, filteredFrame->sample_rate, filteredFrame->channels);
+					printf("[after] Audio : sample_rate : %d / channels : %d\n"
+						, filtered_frame->sample_rate, filtered_frame->channels);
 				}
 
-				av_frame_unref(filteredFrame);
+				av_frame_unref(filtered_frame);
 			} // while
-			av_frame_unref(decodedFrame);
+			av_frame_unref(decoded_frame);
 		} // if
 
-		av_free_packet(&packet);
+		av_free_packet(&pkt);
 	} // while
 
-	av_frame_free(&decodedFrame);
-	av_frame_free(&filteredFrame);
+	av_frame_free(&decoded_frame);
+	av_frame_free(&filtered_frame);
 
+main_end:
 	release();
-
 	return 0;
 }

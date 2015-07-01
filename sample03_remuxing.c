@@ -169,10 +169,16 @@ int main(int argc, char* argv[])
 	}
 
 	ret = open_input(argv[1]);
-	if(ret < 0) goto main_end;
+	if(ret < 0)
+	{
+		goto main_end;
+	}
 
 	ret = create_output(argv[2]);
-	if(ret < 0) goto main_end;
+	if(ret < 0)
+	{
+		goto main_end;
+	}
 
 	// OUTPUT 파일에 대한 정보를 출력합니다.
 	av_dump_format(outputFile.fmt_ctx, 0, outputFile.fmt_ctx->filename, 1);

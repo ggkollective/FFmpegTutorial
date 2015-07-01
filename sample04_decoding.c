@@ -58,15 +58,19 @@ static int open_input(const char* filename)
 		AVCodecContext* codec_ctx = inputFile.fmt_ctx->streams[index]->codec;
 		if(codec_ctx->codec_type == AVMEDIA_TYPE_VIDEO && inputFile.v_index < 0)
 		{
-			ret = open_decoder(codec_ctx);
-			if(ret < 0)	break;
+			if(open_decoder(codec_ctx) < 0)
+			{
+				break;
+			}
 
 			inputFile.v_index = index;
 		}
 		else if(codec_ctx->codec_type == AVMEDIA_TYPE_AUDIO && inputFile.a_index < 0)
 		{
-			ret = open_decoder(codec_ctx);
-			if(ret < 0) break;
+			if(open_decoder(codec_ctx) < 0)
+			{
+				break;
+			}
 
 			inputFile.a_index = index;
 		}
@@ -126,29 +130,24 @@ int main(int argc, char* argv[])
 	if(argc < 2)
 	{
 		printf("usage : %s <input>\n", argv[0]);
-		exit(EXIT_SUCCESS);
+		return 0;
 	}
 
 	ret = open_input(argv[1]);
 	if(ret < 0)
 	{
-		release();
-		exit(EXIT_SUCCESS);
+		goto main_end;
 	}
 
 	// AVFrame은 디코딩된, 즉 압축되지 않은 raw 데이터를 담는데 사용합니다.
 	AVFrame* decoded_frame = av_frame_alloc();
-	if(decoded_frame == NULL)
-	{
-		release();
-		exit(EXIT_SUCCESS);
-	}
+	if(decoded_frame == NULL) goto main_end;
 	
 	AVPacket pkt;
 	int got_frame;
 	
 	while(1)
-	{	
+	{
 		ret = av_read_frame(inputFile.fmt_ctx, &pkt);
 		if(ret == AVERROR_EOF)
 		{
@@ -193,6 +192,7 @@ int main(int argc, char* argv[])
 
 	av_frame_free(&decoded_frame);
 
+main_end:
 	release();
 
 	return 0;
