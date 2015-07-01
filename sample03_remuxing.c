@@ -165,22 +165,14 @@ int main(int argc, char* argv[])
 	if(argc < 3)
 	{
 		printf("usage : %s <input> <output>\n", argv[0]);
-		exit(EXIT_SUCCESS);
+		return 0;
 	}
 
 	ret = open_input(argv[1]);
-	if(ret < 0)
-	{
-		release();
-		exit(EXIT_SUCCESS);
-	}
+	if(ret < 0) goto main_end;
 
 	ret = create_output(argv[2]);
-	if(ret < 0)
-	{
-		release();
-		exit(EXIT_SUCCESS);
-	}
+	if(ret < 0) goto main_end;
 
 	// OUTPUT 파일에 대한 정보를 출력합니다.
 	av_dump_format(outputFile.fmt_ctx, 0, outputFile.fmt_ctx->filename, 1);
@@ -224,6 +216,7 @@ int main(int argc, char* argv[])
 	// 파일을 쓰는 시점에서 마무리하지 못한 정보를 정리하는 시점입니다.
 	av_write_trailer(outputFile.fmt_ctx);
 
+main_end:
 	release();
 
 	return 0;
