@@ -4,54 +4,51 @@
 
 typedef struct _FileContext
 {
-	AVFormatContext* avFormatContext;
-	const char* fileName;
-	int videoIndex;
-	int audioIndex;
+	AVFormatContext* fmt_ctx;
+	int v_index;
+	int a_index;
 } FileContext;
 
-static FileContext inputFile;
+static FileContext input_ctx;
 
-static int openInputFile(const char* fileName)
+static int open_input(const char* file_name)
 {
 	unsigned int index;
-	int returnCode;
+	int ret;
 
-	inputFile.avFormatContext = NULL;
-	inputFile.fileName = fileName;
-	inputFile.videoIndex = -1;
-	inputFile.audioIndex = -1;
+	input_ctx.fmt_ctx = NULL;
+	input_ctx.v_index = input_ctx.a_index = -1;
 
-	returnCode = avformat_open_input(&inputFile.avFormatContext, inputFile.fileName, NULL, NULL);
-	if(returnCode < 0)
+	ret = avformat_open_input(&input_ctx.fmt_ctx, file_name, NULL, NULL);
+	if(ret < 0)
 	{
-		fprintf(stderr, "Could not open input file %s\n", inputFile.fileName);
+		printf("Could not open input file %s\n", file_name);
 		return -1;
 	}
 
-	returnCode = avformat_find_stream_info(inputFile.avFormatContext, NULL);
-	if(returnCode < 0)
+	ret = avformat_find_stream_info(input_ctx.fmt_ctx, NULL);
+	if(ret < 0)
 	{
-		fprintf(stderr, "Failed to retrieve input stream information\n");
+		printf("Failed to retrieve input stream information\n");
 		return -2;
 	}
 
-	for(index = 0; index < inputFile.avFormatContext->nb_streams; index++)
+	for(index = 0; index < input_ctx.fmt_ctx->nb_streams; index++)
 	{
-		AVCodecContext* avCodecContext = inputFile.avFormatContext->streams[index]->codec;
-		if(avCodecContext->codec_type == AVMEDIA_TYPE_VIDEO && inputFile.videoIndex < 0)
+		AVCodecContext* codec_ctx = input_ctx.fmt_ctx->streams[index]->codec;
+		if(codec_ctx->codec_type == AVMEDIA_TYPE_VIDEO && input_ctx.v_index < 0)
 		{
-			inputFile.videoIndex = index;
+			input_ctx.v_index = index;
 		}
-		else if(avCodecContext->codec_type == AVMEDIA_TYPE_AUDIO && inputFile.audioIndex < 0)
+		else if(codec_ctx->codec_type == AVMEDIA_TYPE_AUDIO && input_ctx.a_index < 0)
 		{
-			inputFile.audioIndex = index;
+			input_ctx.a_index = index;
 		}
 	} // for
 
-	if(inputFile.videoIndex < 0 && inputFile.audioIndex < 0)
+	if(input_ctx.v_index < 0 && input_ctx.a_index < 0)
 	{
-		fprintf(stderr, "Failed to retrieve input stream information\n");
+		printf("Failed to retrieve input stream information\n");
 		return -3;
 	}
 
@@ -60,55 +57,55 @@ static int openInputFile(const char* fileName)
 
 static void release()
 {
-	if(inputFile.avFormatContext != NULL)
+	if(input_ctx.fmt_ctx != NULL)
 	{
-		avformat_close_input(&inputFile.avFormatContext);
+		avformat_close_input(&input_ctx.fmt_ctx);
 	}
 }
 
 int main(int argc, char* argv[])
 {
-	int returnCode;
+	int ret;
 
 	av_register_all();
 	av_log_set_level(AV_LOG_DEBUG);
 
 	if(argc < 2)
 	{
-		fprintf(stderr, "usage : %s <input>\n", argv[0]);
+		printf("usage : %s <input>\n", argv[0]);
 		exit(EXIT_SUCCESS);
 	}
 
-	returnCode = openInputFile(argv[1]);
-	if(returnCode < 0)
+	ret = open_input(argv[1]);
+	if(ret < 0)
 	{
 		release();
 		exit(EXIT_SUCCESS);
 	}
 
 	// AVPacket은 코덱으로 압축된 스트림 데이터를 저장하는데 사용됩니다.
-	AVPacket packet;
+	AVPacket pkt;
 
 	while(1)
 	{
-		returnCode = av_read_frame(inputFile.avFormatContext, &packet);
-		if(returnCode == AVERROR_EOF)
+		ret = av_read_frame(input_ctx.fmt_ctx, &pkt);
+		if(ret == AVERROR_EOF)
 		{
 			// 더 이상 읽어올 패킷이 없습니다.
-			fprintf(stdout, "End of frame\n");
+			printf("End of frame\n");
 			break;
 		}
 
-		if(packet.stream_index == inputFile.videoIndex)
+		if(pkt.stream_index == input_ctx.v_index)
 		{
-			fprintf(stdout, "Video packet\n");
+			printf("Video packet\n");
 		}
-		else if(packet.stream_index == inputFile.audioIndex)
+		else if(pkt.stream_index == input_ctx.a_index)
 		{
-			fprintf(stdout, "Audio packet\n");
+			printf("Audio packet\n");
 		}
 
-		av_free_packet(&packet);
+		av_free_packet(&pkt);
 	} // while
 
 	release();
