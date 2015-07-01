@@ -4,16 +4,27 @@
 
 static AVFormatContext* fmt_ctx = NULL;
 
-static int open_input(const char* filename)
-{
+int main(int argc, char* argv[])
+{	
 	unsigned int index;
 	int ret;
 
+	av_register_all();
+
+	// FFmpeg 라이브러리 레벨에서 디버깅 로그를 출력하도록 합니다.
+	av_log_set_level(AV_LOG_DEBUG);
+
+	if(argc < 2)
+	{
+		printf("usage : %s <input>\n", argv[0]);
+		exit(EXIT_SUCCESS);
+	}
+
 	// 주어진 파일 이름으로부터 fmt_ctx를 가져옵니다. 
-	ret = avformat_open_input(&fmt_ctx, filename, NULL, NULL);
+	ret = avformat_open_input(&fmt_ctx, argv[1], NULL, NULL);
 	if(ret < 0)
 	{
-		printf("Could not open input file %s\n", filename);
+		printf("Could not open input file %s\n", argv[1]);
 		return -1;
 	}
 
@@ -46,39 +57,10 @@ static int open_input(const char* filename)
 		}
 	} // for
 
-	return 0;
-}
-
-static void release()
-{
 	if(fmt_ctx != NULL)
 	{
 		avformat_close_input(&fmt_ctx);
 	}
-}
 
-int main(int argc, char* argv[])
-{
-	int ret;
-
-	av_register_all();
-
-	// FFmpeg 라이브러리 레벨에서 디버깅 로그를 출력하도록 합니다.
-	av_log_set_level(AV_LOG_DEBUG);
-
-	if(argc < 2)
-	{
-		printf("usage : %s <input>\n", argv[0]);
-		exit(EXIT_SUCCESS);
-	}
-
-	ret = open_input(argv[1]);
-	if(ret < 0)
-	{
-		release();
-		exit(EXIT_SUCCESS);
-	}
-
-	release();
 	return 0;
 }
