@@ -17,7 +17,7 @@ int main(int argc, char* argv[])
 	if(argc < 2)
 	{
 		printf("usage : %s <input>\n", argv[0]);
-		exit(EXIT_SUCCESS);
+		return 0;
 	}
 
 	// 주어진 파일 이름으로부터 fmt_ctx를 가져옵니다. 

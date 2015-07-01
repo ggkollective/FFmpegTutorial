@@ -73,7 +73,7 @@ int main(int argc, char* argv[])
 	if(argc < 2)
 	{
 		printf("usage : %s <input>\n", argv[0]);
-		exit(EXIT_SUCCESS);
+		return 0;
 	}
 
 	ret = open_input(argv[1]);
