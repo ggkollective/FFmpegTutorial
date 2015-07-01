@@ -29,8 +29,8 @@ static FileContext inputFile, outputFile;
 static FilterContext videoFilterContext, audioFilterContext;
 static const int dstWidth = 480;
 static const int dstHeight = 320;
-static const int videoBitrate = (1500*1000);
-static const int audioBitrate = (128*1000);
+static const int videoBitrate = 1500000;
+static const int audioBitrate = 128000;
 static const int64_t dstChannelLayout = AV_CH_LAYOUT_STEREO;
 static const int dstSamplerate = 32000;
 
@@ -145,6 +145,9 @@ static int createOutputFile(const char* fileName)
 			outCodecContext->bit_rate = videoBitrate;
 			outCodecContext->width = dstWidth;
 			outCodecContext->height = dstHeight;
+
+			outCodecContext->profile = FF_PROFILE_H264_HIGH;
+			outCodecContext->level = 41;
 
 			outCodecContext->time_base = inCodecContext->time_base;
 			outCodecContext->sample_aspect_ratio = inCodecContext->sample_aspect_ratio;
@@ -530,6 +533,7 @@ static int encodeFrame(AVCodecContext* avCodecContext, AVFrame* frame, AVPacket*
 	packet->data = NULL;
 	packet->size = 0;
 
+	frame->pict_type = AV_PICTURE_TYPE_NONE;
 	return encodeFunc(avCodecContext, packet, frame, gotPacket);
 }
 
@@ -612,7 +616,9 @@ int main(int argc, char* argv[])
 		
 		const enum AVMediaType streamType = avCodecContext->codec_type;
 		gotFrame = 0;
-
+		
+		av_packet_rescale_ts(&packet, avStream->time_base, avCodecContext->time_base);
+		
 		returnCode = decodePacket(avCodecContext, &packet, &decodedFrame, &gotFrame);
 		if(returnCode >= 0 && gotFrame)
 		{
@@ -629,7 +635,7 @@ int main(int argc, char* argv[])
 
 			while(1)
 			{
-				int streamIndex = (packet.stream_index == inputFile.videoIndex) ? 
+				int streamIndex = (streamType == AVMEDIA_TYPE_VIDEO) ? 
 									outputFile.videoIndex : outputFile.audioIndex;
 				AVStream* outAVStream = outputFile.avFormatContext->streams[streamIndex];
 				AVCodecContext* outCodecContext = outAVStream->codec;
@@ -646,8 +652,9 @@ int main(int argc, char* argv[])
 				returnCode = encodeFrame(outCodecContext, filteredFrame, &encodedPacket, &gotPacket);
 				if(gotPacket)
 				{
-					av_packet_rescale_ts(&encodedPacket, outCodecContext->time_base, outCodecContext->time_base);
 					encodedPacket.stream_index = streamIndex;
+					av_packet_rescale_ts(&encodedPacket, outCodecContext->time_base, outAVStream->time_base);
+
 					returnCode = av_interleaved_write_frame(outputFile.avFormatContext, &encodedPacket);
 					if(returnCode < 0)
 					{
