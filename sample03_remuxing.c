@@ -72,43 +72,45 @@ static int create_output(const char* fileName)
 	for(index = 0; index < inputFile.fmt_ctx->nb_streams; index++)
 	{
 		// Input 파일로부터 읽어드린 스트림만 추가합니다.
-		if(index == inputFile.v_index || index == inputFile.a_index)
+		if(index != inputFile.v_index && index != inputFile.a_index)
 		{
-			AVStream* in_stream = inputFile.fmt_ctx->streams[index];
-			AVCodecContext* in_codec_ctx = in_stream->codec;
+			continue;
+		}
 
-			AVStream* out_stream = avformat_new_stream(outputFile.fmt_ctx, in_codec_ctx->codec);
-			if(out_stream == NULL)
-			{
-				printf("Failed to allocate output stream\n");
-				return -2;
-			}
+		AVStream* in_stream = inputFile.fmt_ctx->streams[index];
+		AVCodecContext* in_codec_ctx = in_stream->codec;
 
-			AVCodecContext* outCodecContext = out_stream->codec;
-			if(avcodec_copy_context(outCodecContext, in_codec_ctx) < 0)
-			{
-				printf("Error occurred while copying context\n");
-				return -3;
-			}
+		AVStream* out_stream = avformat_new_stream(outputFile.fmt_ctx, in_codec_ctx->codec);
+		if(out_stream == NULL)
+		{
+			printf("Failed to allocate output stream\n");
+			return -2;
+		}
 
-			// Deprecated된 AVCodecContext 대신 AVStream을 사용.
-			out_stream->time_base = in_stream->time_base;
-			// FFmpeg에서 지원하는 코덱과 호환성을 맞추기 위해 코덱 태그정보 삭제
-			outCodecContext->codec_tag = 0;
-			if(outputFile.fmt_ctx->oformat->flags & AVFMT_GLOBALHEADER)
-			{
-				outCodecContext->flags |= CODEC_FLAG_GLOBAL_HEADER;
-			}
+		AVCodecContext* outCodecContext = out_stream->codec;
+		if(avcodec_copy_context(outCodecContext, in_codec_ctx) < 0)
+		{
+			printf("Error occurred while copying context\n");
+			return -3;
+		}
 
-			if(index == inputFile.v_index)
-			{
-				outputFile.v_index = out_index++;
-			}
-			else
-			{
-				outputFile.a_index = out_index++;
-			}
-		} // if
+		// Deprecated된 AVCodecContext 대신 AVStream을 사용.
+		out_stream->time_base = in_stream->time_base;
+		// FFmpeg에서 지원하는 코덱과 호환성을 맞추기 위해 코덱 태그정보 삭제
+		outCodecContext->codec_tag = 0;
+		if(outputFile.fmt_ctx->oformat->flags & AVFMT_GLOBALHEADER)
+		{
+			outCodecContext->flags |= CODEC_FLAG_GLOBAL_HEADER;
+		}
+
+		if(index == inputFile.v_index)
+		{
+			outputFile.v_index = out_index++;
+		}
+		else
+		{
+			outputFile.a_index = out_index++;
+		}
 	} // for
 
 	if(!(outputFile.fmt_ctx->oformat->flags & AVFMT_NOFILE))
@@ -175,7 +177,7 @@ int main(int argc, char* argv[])
 	av_dump_format(outputFile.fmt_ctx, 0, outputFile.fmt_ctx->filename, 1);
 
 	AVPacket pkt;
-	int stream_index;
+	int out_stream_index;
 
 	while(1)
 	{
@@ -194,16 +196,15 @@ int main(int argc, char* argv[])
 		}
 
 		AVStream* in_stream = inputFile.fmt_ctx->streams[pkt.stream_index];
-		stream_index = (pkt.stream_index == inputFile.v_index) ? 
+		out_stream_index = (pkt.stream_index == inputFile.v_index) ? 
 						outputFile.v_index : outputFile.a_index;
-		AVStream* out_stream = outputFile.fmt_ctx->streams[stream_index];
+		AVStream* out_stream = outputFile.fmt_ctx->streams[out_stream_index];
 
 		av_packet_rescale_ts(&pkt, in_stream->time_base, out_stream->time_base);
 
-		pkt.stream_index = stream_index;
+		pkt.stream_index = out_stream_index;
 
-		ret = av_interleaved_write_frame(outputFile.fmt_ctx, &pkt);
-		if(ret < 0)
+		if(av_interleaved_write_frame(outputFile.fmt_ctx, &pkt) < 0)
 		{
 			printf("Error occurred when writing packet into file\n");
 			break;
