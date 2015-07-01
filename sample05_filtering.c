@@ -330,7 +330,7 @@ static void release()
 	}
 }
 
-static int decodePacket(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame** frame, int* got_frame)
+static int decode_packet(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame** frame, int* got_frame)
 {
 	int (*decode_func)(AVCodecContext *, AVFrame *, int *, const AVPacket *);
 	int decoded_size;
@@ -414,7 +414,7 @@ int main(int argc, char* argv[])
 
 		av_packet_rescale_ts(&pkt, avStream->time_base, codec_ctx->time_base);
 
-		ret = decodePacket(codec_ctx, &pkt, &decoded_frame, &got_frame);
+		ret = decode_packet(codec_ctx, &pkt, &decoded_frame, &got_frame);
 		if(ret >= 0 && got_frame)
 		{
 			FilterContext* filter_ctx;
