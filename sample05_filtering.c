@@ -99,9 +99,9 @@ static int open_input(const char* filename)
 
 static int init_video_filter()
 {
-	AVStream* avStream = inputFile.fmt_ctx->streams[inputFile.v_index];
-	AVCodecContext* codec_ctx = avStream->codec;
-	AVFilterContext* rescaleFilter;
+	AVStream* stream = inputFile.fmt_ctx->streams[inputFile.v_index];
+	AVCodecContext* codec_ctx = stream->codec;
+	AVFilterContext* rescale_filter;
 	AVFilterInOut *inputs, *outputs;
 	char args[512];
 
@@ -126,7 +126,7 @@ static int init_video_filter()
 	// Input 필터 생성
 	// Buffer Source -> input 필터 생성
 	snprintf(args, sizeof(args), "time_base=%d/%d:video_size=%dx%d:pix_fmt=%d:pixel_aspect=%d/%d"
-		, avStream->time_base.num, avStream->time_base.den
+		, stream->time_base.num, stream->time_base.den
 		, codec_ctx->width, codec_ctx->height
 		, codec_ctx->pix_fmt
 		, codec_ctx->sample_aspect_ratio.num, codec_ctx->sample_aspect_ratio.den);
@@ -163,7 +163,7 @@ static int init_video_filter()
 	snprintf(args, sizeof(args), "%d:%d", dst_width, dst_height);
 
 	if(avfilter_graph_create_filter(
-					&rescaleFilter
+					&rescale_filter
 					, avfilter_get_by_name("scale")
 					, "scale", args, NULL, vfilter_ctx.filter_graph) < 0)
 	{
@@ -172,14 +172,14 @@ static int init_video_filter()
 	}
 
 	// 필터그래프의 output을 aformat 필터로 연결합니다.
-	if(avfilter_link(outputs->filter_ctx, 0, rescaleFilter, 0) < 0)
+	if(avfilter_link(outputs->filter_ctx, 0, rescale_filter, 0) < 0)
 	{
 		printf("Failed to link video format filter\n");
 		return -4;
 	}
 
 	// aformat 필터는 Buffer Sink 필터와 연결합니다.
-	if(avfilter_link(rescaleFilter, 0, vfilter_ctx.sink_ctx, 0) < 0)
+	if(avfilter_link(rescale_filter, 0, vfilter_ctx.sink_ctx, 0) < 0)
 	{
 		printf("Failed to link video format filter\n");
 		return -4;
@@ -200,8 +200,8 @@ static int init_video_filter()
 
 static int init_audio_filter()
 {
-	AVStream* avStream = inputFile.fmt_ctx->streams[inputFile.a_index];
-	AVCodecContext* codec_ctx = avStream->codec;
+	AVStream* stream = inputFile.fmt_ctx->streams[inputFile.a_index];
+	AVCodecContext* codec_ctx = stream->codec;
 	AVFilterInOut *inputs, *outputs;
 	AVFilterContext* resample_filter;
 	char args[512];
@@ -227,7 +227,7 @@ static int init_audio_filter()
 	// Input 필터 생성 -----------------------------------
 	// Buffer Source -> input 필터 생성
 	snprintf(args, sizeof(args), "time_base=%d/%d:sample_rate=%d:sample_fmt=%s:channel_layout=0x%"PRIx64
-		, avStream->time_base.num, avStream->time_base.den
+		, stream->time_base.num, stream->time_base.den
 		, codec_ctx->sample_rate
 		, av_get_sample_fmt_name(codec_ctx->sample_fmt)
 		, codec_ctx->channel_layout);
@@ -408,11 +408,11 @@ int main(int argc, char* argv[])
 			continue;
 		}
 
-		AVStream* avStream = inputFile.fmt_ctx->streams[pkt.stream_index];
-		AVCodecContext* codec_ctx = avStream->codec;
+		AVStream* stream = inputFile.fmt_ctx->streams[pkt.stream_index];
+		AVCodecContext* codec_ctx = stream->codec;
 		got_frame = 0;
 
-		av_packet_rescale_ts(&pkt, avStream->time_base, codec_ctx->time_base);
+		av_packet_rescale_ts(&pkt, stream->time_base, codec_ctx->time_base);
 
 		ret = decode_packet(codec_ctx, &pkt, &decoded_frame, &got_frame);
 		if(ret >= 0 && got_frame)
