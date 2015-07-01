@@ -34,20 +34,17 @@ static int open_decoder(AVCodecContext* codec_ctx)
 static int open_input(const char* filename)
 {
 	unsigned int index;
-	int ret;
 
 	inputFile.fmt_ctx = NULL;
 	inputFile.a_index = inputFile.v_index = -1;
 
-	ret = avformat_open_input(&inputFile.fmt_ctx, filename, NULL, NULL);
-	if(ret < 0)
+	if(avformat_open_input(&inputFile.fmt_ctx, filename, NULL, NULL) < 0)
 	{
 		printf("Could not open input file %s\n", filename);
 		return -1;
 	}
 
-	ret = avformat_find_stream_info(inputFile.fmt_ctx, NULL);
-	if(ret < 0)
+	if(avformat_find_stream_info(inputFile.fmt_ctx, NULL) < 0)
 	{
 		printf("Failed to retrieve input stream information\n");
 		return -2;
@@ -133,8 +130,7 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
-	ret = open_input(argv[1]);
-	if(ret < 0)
+	if(open_input(argv[1]) < 0)
 	{
 		goto main_end;
 	}
@@ -162,8 +158,11 @@ int main(int argc, char* argv[])
 			continue;
 		}
 
-		AVCodecContext* codec_ctx = inputFile.fmt_ctx->streams[pkt.stream_index]->codec;
+		AVStream* avStream = inputFile.fmt_ctx->streams[pkt.stream_index];
+		AVCodecContext* codec_ctx = avStream->codec;
 		got_frame = 0;
+
+		av_packet_rescale_ts(&pkt, avStream->time_base, codec_ctx->time_base);
 
 		ret = decode_packet(codec_ctx, &pkt, &decoded_frame, &got_frame);
 		if(ret >= 0 && got_frame)

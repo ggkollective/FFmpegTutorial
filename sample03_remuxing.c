@@ -14,20 +14,17 @@ static FileContext inputFile, outputFile;
 static int open_input(const char* fileName)
 {
 	unsigned int index;
-	int ret;
 
 	inputFile.fmt_ctx = NULL;
 	inputFile.a_index = inputFile.v_index = -1;
 
-	ret = avformat_open_input(&inputFile.fmt_ctx, fileName, NULL, NULL);
-	if(ret < 0)
+	if(avformat_open_input(&inputFile.fmt_ctx, fileName, NULL, NULL) < 0)
 	{
 		printf("Could not open input file %s\n", fileName);
 		return -1;
 	}
 
-	ret = avformat_find_stream_info(inputFile.fmt_ctx, NULL);
-	if(ret < 0)
+	if(avformat_find_stream_info(inputFile.fmt_ctx, NULL) < 0)
 	{
 		printf("Failed to retrieve input stream information\n");
 		return -2;
@@ -59,13 +56,11 @@ static int create_output(const char* fileName)
 {
 	unsigned int index;
 	int out_index;
-	int ret;
 
 	outputFile.fmt_ctx = NULL;
 	outputFile.a_index = outputFile.v_index = -1;
 
-	ret = avformat_alloc_output_context2(&outputFile.fmt_ctx, NULL, NULL, fileName);
-	if(ret < 0)
+	if(avformat_alloc_output_context2(&outputFile.fmt_ctx, NULL, NULL, fileName) < 0)
 	{
 		printf("Could not create output context\n");
 		return -1;
@@ -90,8 +85,7 @@ static int create_output(const char* fileName)
 			}
 
 			AVCodecContext* outCodecContext = out_stream->codec;
-			ret = avcodec_copy_context(outCodecContext, in_codec_ctx);
-			if(ret < 0)
+			if(avcodec_copy_context(outCodecContext, in_codec_ctx) < 0)
 			{
 				printf("Error occurred while copying context\n");
 				return -3;
@@ -128,8 +122,7 @@ static int create_output(const char* fileName)
 	}
 
 	// 컨테이너의 헤더파일을 쓰는 함수입니다.
-	ret = avformat_write_header(outputFile.fmt_ctx, NULL);
-	if(ret < 0)
+	if(avformat_write_header(outputFile.fmt_ctx, NULL) < 0)
 	{
 		printf("Failed writing header into output file\n");
 		return -5;	
@@ -168,14 +161,12 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
-	ret = open_input(argv[1]);
-	if(ret < 0)
+	if(open_input(argv[1]) < 0)
 	{
 		goto main_end;
 	}
 
-	ret = create_output(argv[2]);
-	if(ret < 0)
+	if(create_output(argv[2]) < 0)
 	{
 		goto main_end;
 	}

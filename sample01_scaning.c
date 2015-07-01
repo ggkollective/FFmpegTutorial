@@ -7,7 +7,6 @@ static AVFormatContext* fmt_ctx = NULL;
 int main(int argc, char* argv[])
 {	
 	unsigned int index;
-	int ret;
 
 	av_register_all();
 
@@ -21,16 +20,14 @@ int main(int argc, char* argv[])
 	}
 
 	// 주어진 파일 이름으로부터 fmt_ctx를 가져옵니다. 
-	ret = avformat_open_input(&fmt_ctx, argv[1], NULL, NULL);
-	if(ret < 0)
+	if(avformat_open_input(&fmt_ctx, argv[1], NULL, NULL) < 0)
 	{
 		printf("Could not open input file %s\n", argv[1]);
 		return -1;
 	}
 
 	//주어진 fmt_ctx로부터 유효한 스트림이 있는지 찾습니다.
-	ret = avformat_find_stream_info(fmt_ctx, NULL);
-	if(ret < 0)
+	if(avformat_find_stream_info(fmt_ctx, NULL) < 0)
 	{
 		printf("Failed to retrieve input stream information\n");
 		return -2;
