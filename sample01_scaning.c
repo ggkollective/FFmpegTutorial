@@ -5,7 +5,7 @@
 static AVFormatContext* fmt_ctx = NULL;
 
 int main(int argc, char* argv[])
-{	
+{
 	unsigned int index;
 
 	av_register_all();
