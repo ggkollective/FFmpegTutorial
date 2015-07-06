@@ -34,6 +34,8 @@ static const int dst_abit_rate = 128000;
 static const int64_t dst_ch_layout = AV_CH_LAYOUT_STEREO;
 static const int dst_sample_rate = 32000;
 
+AVFrame* decoded_frame = NULL;
+
 static int open_decoder(AVCodecContext* codec_ctx)
 {
 	AVCodec* decoder = avcodec_find_decoder(codec_ctx->codec_id);
@@ -482,17 +484,81 @@ static int decode_packet(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame** fra
 	return decoded_size;
 }
 
-static int encode_frame(AVCodecContext* codec_ctx, AVFrame* frame, AVPacket* pkt, int* got_packet)
+static int encode_write_frame(AVFrame* frame, int out_stream_index)
 {
+	AVStream* stream = outputFile.fmt_ctx->streams[out_stream_index];
+	AVCodecContext* codec_ctx = stream->codec;
 	int (*encode_func)(AVCodecContext*, AVPacket*, const AVFrame*, int *);
-	encode_func = (codec_ctx->codec_type == AVMEDIA_TYPE_VIDEO) ? avcodec_encode_video2 : avcodec_encode_audio2;
+	AVPacket encoded_pkt;
+	int got_packet = 0;
+
+	encode_func = (out_stream_index == outputFile.v_index) ? avcodec_encode_video2 : avcodec_encode_audio2;
 	
-	av_init_packet(pkt);
-	pkt->data = NULL;
-	pkt->size = 0;
+	av_init_packet(&encoded_pkt);
+	encoded_pkt.data = NULL;
+	encoded_pkt.size = 0;
 
 	frame->pict_type = AV_PICTURE_TYPE_NONE;
-	return encode_func(codec_ctx, pkt, frame, got_packet);
+	if(encode_func(codec_ctx, &encoded_pkt, frame, &got_packet) < 0)
+	{
+		printf("Error occurred when encoding frame\n");
+		return -1;
+	}
+
+	if(got_packet)
+	{
+		encoded_pkt.stream_index = out_stream_index;
+		av_packet_rescale_ts(&encoded_pkt, codec_ctx->time_base, stream->time_base);
+
+		if(av_interleaved_write_frame(outputFile.fmt_ctx, &encoded_pkt) < 0)
+		{
+			printf("Error occurred when writing packet into file\n");
+			-2;
+		}
+
+		av_free_packet(&encoded_pkt);
+	}
+
+	return 0;
+}
+
+static int filter_encode_write_frame(AVFrame* frame, int out_stream_index)
+{
+	AVStream* out_stream = outputFile.fmt_ctx->streams[out_stream_index];
+	AVCodecContext* out_codec_ctx = out_stream->codec;
+	FilterContext* filterContext = (out_stream_index == outputFile.v_index) ? 
+										&vfilter_ctx : &afilter_ctx;
+
+	AVFrame* filtered_frame = av_frame_alloc();
+	if(filtered_frame == NULL)
+	{
+		return -1;
+	}
+
+	if(av_buffersrc_add_frame(filterContext->src_ctx, frame) < 0)
+	{
+		printf("Error occurred when putting frame into filter context\n");
+		return -2;
+	}
+
+	while(1)
+	{
+		if(av_buffersink_get_frame(filterContext->sink_ctx, filtered_frame) < 0)
+		{
+			break;
+		}
+
+		if(encode_write_frame(filtered_frame, out_stream_index) < 0)
+		{
+			break;
+		}
+
+		av_frame_unref(filtered_frame);
+	} // while
+
+	av_frame_unref(frame);
+	av_frame_free(&filtered_frame);
+	return 0;
 }
 
 int main(int argc, char* argv[])
@@ -529,16 +595,9 @@ int main(int argc, char* argv[])
 		goto main_end;
 	}
 
-	AVFrame* decoded_frame = av_frame_alloc();
+	decoded_frame = av_frame_alloc();
 	if(decoded_frame == NULL)
 	{
-		goto main_end;
-	}
-
-	AVFrame* filtered_frame = av_frame_alloc();
-	if(filtered_frame == NULL)
-	{
-		av_frame_free(&decoded_frame);
 		goto main_end;
 	}
 	
@@ -567,9 +626,6 @@ int main(int argc, char* argv[])
 
 		out_stream_index = (pkt.stream_index == inputFile.v_index) ? 
 						outputFile.v_index : outputFile.a_index;
-		
-		AVStream* out_stream = outputFile.fmt_ctx->streams[out_stream_index];
-		AVCodecContext* out_codec_ctx = out_stream->codec;
 
 		got_frame = 0;		
 		av_packet_rescale_ts(&pkt, in_stream->time_base, in_codec_ctx->time_base);
@@ -577,44 +633,12 @@ int main(int argc, char* argv[])
 		ret = decode_packet(in_codec_ctx, &pkt, &decoded_frame, &got_frame);
 		if(ret >= 0 && got_frame)
 		{
-			FilterContext* filterContext = 
-							(pkt.stream_index == inputFile.v_index) ? 
-							&vfilter_ctx : &afilter_ctx;
-
-			if(av_buffersrc_add_frame(filterContext->src_ctx, decoded_frame) < 0)
+			ret = filter_encode_write_frame(decoded_frame, out_stream_index);
+			if(ret < 0)
 			{
-				printf("Error occurred when putting frame into filter context\n");
+				av_free_packet(&pkt);
 				break;
 			}
-
-			while(1)
-			{
-				if(av_buffersink_get_frame(filterContext->sink_ctx, filtered_frame) < 0)
-				{
-					break;
-				}
-				
-				AVPacket encoded_pkt;
-
-				got_packet = 0;
-				ret = encode_frame(out_codec_ctx, filtered_frame, &encoded_pkt, &got_packet);
-				if(got_packet)
-				{
-					encoded_pkt.stream_index = out_stream_index;
-					av_packet_rescale_ts(&encoded_pkt, out_codec_ctx->time_base, out_stream->time_base);
-
-					if(av_interleaved_write_frame(outputFile.fmt_ctx, &encoded_pkt) < 0)
-					{
-						printf("Error occurred when writing packet into file\n");
-						break;
-					}
-
-					av_free_packet(&encoded_pkt);
-				}
-
-				av_frame_unref(filtered_frame);
-			} // while
-			av_frame_unref(decoded_frame);
 		} // if
 
 		av_free_packet(&pkt);
@@ -630,7 +654,6 @@ int main(int argc, char* argv[])
 	av_write_trailer(outputFile.fmt_ctx);
 
 	av_frame_free(&decoded_frame);
-	av_frame_free(&filtered_frame);
 main_end:
 	release();
 
