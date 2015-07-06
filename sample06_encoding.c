@@ -34,8 +34,6 @@ static const int dst_abit_rate = 128000;
 static const int64_t dst_ch_layout = AV_CH_LAYOUT_STEREO;
 static const int dst_sample_rate = 32000;
 
-AVFrame* decoded_frame = NULL;
-
 static int open_decoder(AVCodecContext* codec_ctx)
 {
 	AVCodec* decoder = avcodec_find_decoder(codec_ctx->codec_id);
@@ -514,7 +512,7 @@ static int encode_write_frame(AVFrame* frame, int out_stream_index, int* got_pac
 		if(av_interleaved_write_frame(outputFile.fmt_ctx, &encoded_pkt) < 0)
 		{
 			printf("Error occurred when writing packet into file\n");
-			-2;
+			return -2;
 		}
 
 		av_free_packet(&encoded_pkt);
@@ -586,7 +584,7 @@ int main(int argc, char* argv[])
 		goto main_end;
 	}
 
-	decoded_frame = av_frame_alloc();
+	AVFrame* decoded_frame = av_frame_alloc();
 	if(decoded_frame == NULL)
 	{
 		goto main_end;
@@ -636,38 +634,39 @@ int main(int argc, char* argv[])
 		av_free_packet(&pkt);
 	} // while
 
-	// 필터와 인코더에 남아있는 프레임을 모두 가져와야합니다.
+	// 필터와 인코더에 남아있는 프레임을 모두 가져오는 작업입니다.
 	int index, got_packet;
 	for(index = 0; index < inputFile.fmt_ctx->nb_streams; index++)
 	{
-		if(index == inputFile.v_index || 
-			index == inputFile.a_index)
+		if(pkt.stream_index != inputFile.v_index && 
+			pkt.stream_index != inputFile.a_index)
 		{
-			// 필터 정리
-			out_stream_index = (index == inputFile.v_index) ? 
-							outputFile.v_index : outputFile.a_index;
-			ret = filter_encode_write_frame(NULL, out_stream_index);
-			if(ret < 0)
-			{
-				printf("Error occurred while flusing filter context\n");
-				break;
-			}
+			continue;
+		}
 
-			// 인코더 정리
-			while(1)
+		// 필터 정리
+		out_stream_index = (index == inputFile.v_index) ? 
+						outputFile.v_index : outputFile.a_index;
+		ret = filter_encode_write_frame(NULL, out_stream_index);
+		if(ret < 0)
+		{
+			printf("Error occurred while flusing filter context\n");
+			break;
+		}
+
+		// 인코더 정리
+		while(1)
+		{
+			ret = encode_write_frame(NULL, out_stream_index, &got_packet);
+			if(ret < 0 || got_packet == 0)
 			{
-				ret = encode_write_frame(NULL, out_stream_index, &got_packet);
-				if(ret < 0 || got_packet == 0)
-				{
-					break;
-				}
+				break;
 			}
 		}
 	}
 	
 	// 파일을 쓰는 시점에서 마무리하지 못한 정보를 정리하는 시점입니다.
 	av_write_trailer(outputFile.fmt_ctx);
-
 	av_frame_free(&decoded_frame);
 main_end:
 	release();
