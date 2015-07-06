@@ -484,28 +484,29 @@ static int decode_packet(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame** fra
 	return decoded_size;
 }
 
-static int encode_write_frame(AVFrame* frame, int out_stream_index)
+static int encode_write_frame(AVFrame* frame, int out_stream_index, int* got_packet)
 {
 	AVStream* stream = outputFile.fmt_ctx->streams[out_stream_index];
 	AVCodecContext* codec_ctx = stream->codec;
 	int (*encode_func)(AVCodecContext*, AVPacket*, const AVFrame*, int *);
 	AVPacket encoded_pkt;
-	int got_packet = 0;
-
-	encode_func = (out_stream_index == outputFile.v_index) ? avcodec_encode_video2 : avcodec_encode_audio2;
 	
 	av_init_packet(&encoded_pkt);
 	encoded_pkt.data = NULL;
 	encoded_pkt.size = 0;
+	
+	encode_func = (out_stream_index == outputFile.v_index) ? avcodec_encode_video2 : avcodec_encode_audio2;
+	*got_packet = 0;
 
-	frame->pict_type = AV_PICTURE_TYPE_NONE;
-	if(encode_func(codec_ctx, &encoded_pkt, frame, &got_packet) < 0)
+	if(frame != NULL) frame->pict_type = AV_PICTURE_TYPE_NONE;
+
+	if(encode_func(codec_ctx, &encoded_pkt, frame, got_packet) < 0)
 	{
 		printf("Error occurred when encoding frame\n");
 		return -1;
 	}
 
-	if(got_packet)
+	if(*got_packet)
 	{
 		encoded_pkt.stream_index = out_stream_index;
 		av_packet_rescale_ts(&encoded_pkt, codec_ctx->time_base, stream->time_base);
@@ -528,6 +529,7 @@ static int filter_encode_write_frame(AVFrame* frame, int out_stream_index)
 	AVCodecContext* out_codec_ctx = out_stream->codec;
 	FilterContext* filterContext = (out_stream_index == outputFile.v_index) ? 
 										&vfilter_ctx : &afilter_ctx;
+	int got_packet;
 
 	AVFrame* filtered_frame = av_frame_alloc();
 	if(filtered_frame == NULL)
@@ -548,7 +550,7 @@ static int filter_encode_write_frame(AVFrame* frame, int out_stream_index)
 			break;
 		}
 
-		if(encode_write_frame(filtered_frame, out_stream_index) < 0)
+		if(encode_write_frame(filtered_frame, out_stream_index, &got_packet) < 0)
 		{
 			break;
 		}
@@ -556,7 +558,6 @@ static int filter_encode_write_frame(AVFrame* frame, int out_stream_index)
 		av_frame_unref(filtered_frame);
 	} // while
 
-	av_frame_unref(frame);
 	av_frame_free(&filtered_frame);
 	return 0;
 }
@@ -575,22 +576,12 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
-	if(open_input(argv[1]) < 0)
+	if(open_input(argv[1]) < 0 || create_output(argv[2]) < 0)
 	{
 		goto main_end;
 	}
 
-	if(create_output(argv[2]) < 0)
-	{
-		goto main_end;
-	}
-
-	if(init_video_filter() < 0)
-	{
-		goto main_end;
-	}
-
-	if(init_audio_filter() < 0)
+	if(init_video_filter() < 0 || init_audio_filter() < 0)
 	{
 		goto main_end;
 	}
@@ -602,7 +593,7 @@ int main(int argc, char* argv[])
 	}
 	
 	AVPacket pkt;
-	int got_frame, got_packet;
+	int got_frame;
 	int out_stream_index;
 
 	while(1)
@@ -634,6 +625,7 @@ int main(int argc, char* argv[])
 		if(ret >= 0 && got_frame)
 		{
 			ret = filter_encode_write_frame(decoded_frame, out_stream_index);
+			av_frame_unref(decoded_frame);
 			if(ret < 0)
 			{
 				av_free_packet(&pkt);
@@ -644,11 +636,34 @@ int main(int argc, char* argv[])
 		av_free_packet(&pkt);
 	} // while
 
-	// TODO : Flush Filter & Encoding
-	// ---------
+	// 필터와 인코더에 남아있는 프레임을 모두 가져와야합니다.
+	int index, got_packet;
+	for(index = 0; index < inputFile.fmt_ctx->nb_streams; index++)
+	{
+		if(index == inputFile.v_index || 
+			index == inputFile.a_index)
+		{
+			// 필터 정리
+			out_stream_index = (index == inputFile.v_index) ? 
+							outputFile.v_index : outputFile.a_index;
+			ret = filter_encode_write_frame(NULL, out_stream_index);
+			if(ret < 0)
+			{
+				printf("Error occurred while flusing filter context\n");
+				break;
+			}
 
-	// ---------
-	//
+			// 인코더 정리
+			while(1)
+			{
+				ret = encode_write_frame(NULL, out_stream_index, &got_packet);
+				if(ret < 0 || got_packet == 0)
+				{
+					break;
+				}
+			}
+		}
+	}
 	
 	// 파일을 쓰는 시점에서 마무리하지 못한 정보를 정리하는 시점입니다.
 	av_write_trailer(outputFile.fmt_ctx);
