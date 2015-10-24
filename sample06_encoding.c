@@ -608,7 +608,7 @@ int main(int argc, char* argv[])
 		av_free_packet(&pkt);
 	} // while
 
-	// 필터와 인코더에 남아있는 프레임을 모두 가져오는 작업입니다.
+	// This flush all remaining frames in encoder and filter.
 	int index, got_packet;
 	for(index = 0; index < inputFile.fmt_ctx->nb_streams; index++)
 	{
@@ -618,7 +618,7 @@ int main(int argc, char* argv[])
 			continue;
 		}
 
-		// 필터 정리
+		// flush filter
 		out_stream_index = (index == inputFile.v_index) ? 
 						outputFile.v_index : outputFile.a_index;
 		ret = filter_encode_write_frame(NULL, out_stream_index);
@@ -628,7 +628,7 @@ int main(int argc, char* argv[])
 			break;
 		}
 
-		// 인코더 정리
+		// flush encoder
 		while(1)
 		{
 			ret = encode_write_frame(NULL, out_stream_index, &got_packet);
@@ -639,7 +639,7 @@ int main(int argc, char* argv[])
 		}
 	}
 	
-	// 파일을 쓰는 시점에서 마무리하지 못한 정보를 정리하는 시점입니다.
+	// Writing trailer.
 	av_write_trailer(outputFile.fmt_ctx);
 	av_frame_free(&decoded_frame);
 main_end:
