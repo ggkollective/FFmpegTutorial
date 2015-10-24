@@ -78,7 +78,7 @@ int main(int argc, char* argv[])
 		goto main_end;
 	}
 
-	// AVPacket은 코덱으로 압축된 스트림 데이터를 저장하는데 사용됩니다.
+	// AVPacket is used to store packed stream data.
 	AVPacket pkt;
 
 	while(1)
@@ -86,7 +86,7 @@ int main(int argc, char* argv[])
 		ret = av_read_frame(input_ctx.fmt_ctx, &pkt);
 		if(ret == AVERROR_EOF)
 		{
-			// 더 이상 읽어올 패킷이 없습니다.
+			// No more packets to read.
 			printf("End of frame\n");
 			break;
 		}
