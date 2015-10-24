@@ -15,14 +15,14 @@ static FileContext inputFile;
 
 static int open_decoder(AVCodecContext* codec_ctx)
 {
-	// 코덱 ID를 통해 FFmpeg 라이브러리가 자동으로 코덱을 찾도록 합니다.
+	// Find a decoder by codec ID
 	AVCodec* decoder = avcodec_find_decoder(codec_ctx->codec_id);
 	if(decoder == NULL)
 	{
 		return -1;
 	}
 
-	// 찾아낸 디코더를 통해 코덱을 엽니다.
+	// Open the codec using decoder
 	if(avcodec_open2(codec_ctx, decoder, NULL) < 0)
 	{
 		return -2;
@@ -105,12 +105,12 @@ static int decode_packet(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame** fra
 	int (*decode_func)(AVCodecContext *, AVFrame *, int *, const AVPacket *);
 	int decoded_size;
 
-	// 비디오인지 오디오인지에 따라 디코딩할 함수를 정합니다.
+	// Decide which is needed for decoding pakcet. 
 	decode_func = (codec_ctx->codec_type == AVMEDIA_TYPE_VIDEO) ? avcodec_decode_video2 : avcodec_decode_audio4;
 	decoded_size = decode_func(codec_ctx, *frame, got_frame, pkt);
 	if(*got_frame)
 	{
-		// packet에 있는 PTS와 DTS를 자동으로 frame으로 넘겨주는 작업입니다.
+		// This adjust PTS/DTS automatically in frame.
 		(*frame)->pts = av_frame_get_best_effort_timestamp(*frame);
 	}
 
@@ -135,7 +135,7 @@ int main(int argc, char* argv[])
 		goto main_end;
 	}
 
-	// AVFrame은 디코딩된, 즉 압축되지 않은 raw 데이터를 담는데 사용합니다.
+	// AVFrame is used to store raw frame, which is decoded from packet.
 	AVFrame* decoded_frame = av_frame_alloc();
 	if(decoded_frame == NULL) goto main_end;
 	
