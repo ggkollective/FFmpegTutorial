@@ -66,12 +66,12 @@ static int create_output(const char* fileName)
 		return -1;
 	}
 
-	// 스트림 인덱스는 0부터 시작합니다.
+	// stream index starts from 0.
 	out_index = 0;
-	// INPUT 파일에 있는 컨텍스트를 복사하는 과정입니다.
+	// this copy video/audio streams from input video.
 	for(index = 0; index < inputFile.fmt_ctx->nb_streams; index++)
 	{
-		// Input 파일로부터 읽어드린 스트림만 추가합니다.
+		// Make sure we only copy streams which is checked before.
 		if(index != inputFile.v_index && index != inputFile.a_index)
 		{
 			continue;
@@ -94,9 +94,9 @@ static int create_output(const char* fileName)
 			return -3;
 		}
 
-		// Deprecated된 AVCodecContext 대신 AVStream을 사용.
+		// Use AVStream instead of AVCodecContext(Deprecated).
 		out_stream->time_base = in_stream->time_base;
-		// FFmpeg에서 지원하는 코덱과 호환성을 맞추기 위해 코덱 태그정보 삭제
+		// Remove codec tag info for compatibility with ffmpeg.
 		outCodecContext->codec_tag = 0;
 		if(outputFile.fmt_ctx->oformat->flags & AVFMT_GLOBALHEADER)
 		{
@@ -115,7 +115,7 @@ static int create_output(const char* fileName)
 
 	if(!(outputFile.fmt_ctx->oformat->flags & AVFMT_NOFILE))
 	{
-		// 실질적으로 파일을 오픈하는 시점입니다.
+		// This actually open the file
 		if(avio_open(&outputFile.fmt_ctx->pb, fileName, AVIO_FLAG_WRITE) < 0)
 		{
 			printf("Failed to create output file %s\n", fileName);
@@ -123,7 +123,7 @@ static int create_output(const char* fileName)
 		}
 	}
 
-	// 컨테이너의 헤더파일을 쓰는 함수입니다.
+	// write the header for output video container.
 	if(avformat_write_header(outputFile.fmt_ctx, NULL) < 0)
 	{
 		printf("Failed writing header into output file\n");
@@ -173,7 +173,7 @@ int main(int argc, char* argv[])
 		goto main_end;
 	}
 
-	// OUTPUT 파일에 대한 정보를 출력합니다.
+	// dump output container, which i just make from above.
 	av_dump_format(outputFile.fmt_ctx, 0, outputFile.fmt_ctx->filename, 1);
 
 	AVPacket pkt;
@@ -211,7 +211,7 @@ int main(int argc, char* argv[])
 		}		
 	} // while
 
-	// 파일을 쓰는 시점에서 마무리하지 못한 정보를 정리하는 시점입니다.
+	// Writes remain informations, which it is called trailer.
 	av_write_trailer(outputFile.fmt_ctx);
 
 main_end:
