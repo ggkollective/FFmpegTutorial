@@ -109,29 +109,29 @@ static int init_video_filter()
 	vfilter_ctx.src_ctx = NULL;
 	vfilter_ctx.sink_ctx = NULL;
 
-	// 필터그래프를 위한 메모리를 할당합니다.
+	// Allocate memory for filter graph
 	vfilter_ctx.filter_graph = avfilter_graph_alloc();
 	if(vfilter_ctx.filter_graph == NULL)
 	{
 		return -1;
 	}
 
-	// 필터그래프에 input과 output을 연결
+	// Link input and output with filter graph.
 	if(avfilter_graph_parse2(vfilter_ctx.filter_graph, "null", &inputs, &outputs) < 0)
 	{
 		printf("Failed to parse video filtergraph\n");
 		return -2;
 	}
 
-	// Input 필터 생성
-	// Buffer Source -> input 필터 생성
+	// Create input filter
+	// Create Buffer Source -> input filter
 	snprintf(args, sizeof(args), "time_base=%d/%d:video_size=%dx%d:pix_fmt=%d:pixel_aspect=%d/%d"
 		, stream->time_base.num, stream->time_base.den
 		, codec_ctx->width, codec_ctx->height
 		, codec_ctx->pix_fmt
 		, codec_ctx->sample_aspect_ratio.num, codec_ctx->sample_aspect_ratio.den);
 
-	// Buffer Source 필터 생성
+	// Create Buffer Source
 	if(avfilter_graph_create_filter(
 					&vfilter_ctx.src_ctx
 					, avfilter_get_by_name("buffer")
@@ -141,15 +141,15 @@ static int init_video_filter()
 		return -3;
 	}
 
-	// Buffer Source 필터를 필터그래프의 input으로 연결합니다.
+	// Link Buffer Source with input filter
 	if(avfilter_link(vfilter_ctx.src_ctx, 0, inputs->filter_ctx, 0) < 0)
 	{
 		printf("Failed to link video buffer source\n");
 		return -4;
 	}
 
-	// Output 필터 생성
-	// Buffer Sink 필터 생성
+	// Create output filter
+	// Create Buffer Sink
 	if(avfilter_graph_create_filter(
 					&vfilter_ctx.sink_ctx
 					, avfilter_get_by_name("buffersink")
@@ -159,7 +159,7 @@ static int init_video_filter()
 		return -3;
 	}
 
-	// 비디오 프레임 해상도 변경을 위한 리스케일 필터 생성
+	// Create rescaler filter to resize video resolution
 	snprintf(args, sizeof(args), "%d:%d", dst_width, dst_height);
 
 	if(avfilter_graph_create_filter(
@@ -171,21 +171,21 @@ static int init_video_filter()
 		return -4;
 	}
 
-	// 필터그래프의 output을 aformat 필터로 연결합니다.
+	// link rescaler filter with aformat filter
 	if(avfilter_link(outputs->filter_ctx, 0, rescale_filter, 0) < 0)
 	{
 		printf("Failed to link video format filter\n");
 		return -4;
 	}
 
-	// aformat 필터는 Buffer Sink 필터와 연결합니다.
+	// aformat is linked with Buffer Sink filter.
 	if(avfilter_link(rescale_filter, 0, vfilter_ctx.sink_ctx, 0) < 0)
 	{
 		printf("Failed to link video format filter\n");
 		return -4;
 	}
 
-	// 준비된 필터를 연결합니다.
+	// Configure all prepared filters.
 	if(avfilter_graph_config(vfilter_ctx.filter_graph, NULL) < 0)
 	{
 		printf("Failed to configure video filter context\n");
@@ -210,29 +210,29 @@ static int init_audio_filter()
 	afilter_ctx.src_ctx = NULL;
 	afilter_ctx.sink_ctx = NULL;
 
-	// 필터그래프를 위한 메모리를 할당합니다.
+	// Allocate memory for filter graph
 	afilter_ctx.filter_graph = avfilter_graph_alloc();
 	if(afilter_ctx.filter_graph == NULL)
 	{
 		return -1;
 	}
 
-	// 필터그래프와 함께 input과 output 필터를 생성
+	// Link input and output with filter graph.
 	if(avfilter_graph_parse2(afilter_ctx.filter_graph, "anull", &inputs, &outputs) < 0)
 	{
 		printf("Failed to parse audio filtergraph\n");
 		return -2;
 	}
 
-	// Input 필터 생성 -----------------------------------
-	// Buffer Source -> input 필터 생성
+	// Create input filter
+	// Create Buffer Source -> input filter
 	snprintf(args, sizeof(args), "time_base=%d/%d:sample_rate=%d:sample_fmt=%s:channel_layout=0x%"PRIx64
 		, stream->time_base.num, stream->time_base.den
 		, codec_ctx->sample_rate
 		, av_get_sample_fmt_name(codec_ctx->sample_fmt)
 		, codec_ctx->channel_layout);
 
-	// Buffer Source 필터 생성
+	// Create Buffer Source filter
 	if(avfilter_graph_create_filter(
 					&afilter_ctx.src_ctx
 					, avfilter_get_by_name("abuffer")
@@ -242,15 +242,15 @@ static int init_audio_filter()
 		return -3;
 	}
 
-	// Buffer Source 필터를 필터그래프의 input으로 연결합니다.
+	// Link Buffer Source with input filter.
 	if(avfilter_link(afilter_ctx.src_ctx, 0, inputs->filter_ctx, 0) < 0)
 	{
 		printf("Failed to link audio buffer source\n");
 		return -4;
 	}
 
-	// Output 필터 생성 -----------------------------------
-	// Buffer Sink 필터 생성
+	// Create output filter
+	// Create Buffer Sink
 	if(avfilter_graph_create_filter(
 					&afilter_ctx.sink_ctx
 					, avfilter_get_by_name("abuffersink")
@@ -260,12 +260,12 @@ static int init_audio_filter()
 		return -3;
 	}
 
-	// 오디오 프레임 포맷 변경을 위한 aformat 필터 생성
+	// Create aformat to change audio format.
 	snprintf(args, sizeof(args), "sample_rates=%d:channel_layouts=0x%"PRIx64
 		, dst_sample_rate
 		, dst_ch_layout);
 
-	// aformat 필터를 생성합니다.
+	// Create aformat filter
 	if(avfilter_graph_create_filter(
 					&resample_filter
 					, avfilter_get_by_name("aformat")
@@ -275,21 +275,21 @@ static int init_audio_filter()
 		return -4;
 	}
 
-	// 필터그래프의 output을 aformat 필터로 연결합니다.
+	// Link output filter with aformat filter
 	if(avfilter_link(outputs->filter_ctx, 0, resample_filter, 0) < 0)
 	{
 		printf("Failed to link audio format filter\n");
 		return -4;
 	}
 
-	// aformat 필터는 Buffer Sink 필터와 연결합니다.
+	// aformat filter is linked with Buffer Sink.
 	if(avfilter_link(resample_filter, 0, afilter_ctx.sink_ctx, 0) < 0)
 	{
 		printf("Failed to link audio format filter\n");
 		return -4;
 	}
 
-	// 준비된 필터를 연결합니다.
+	// Configure all prepared filters.
 	if(avfilter_graph_config(afilter_ctx.filter_graph, NULL) < 0)
 	{
 		printf("Failed to configure audio filter context\n");
@@ -432,7 +432,7 @@ int main(int argc, char* argv[])
 					, decoded_frame->sample_rate, decoded_frame->channels);
 			}
 
-			// 필터에 프레임을 넣습니다.
+			// put frame into filter.
 			if(av_buffersrc_add_frame(filter_ctx->src_ctx, decoded_frame) < 0)
 			{
 				printf("Error occurred when putting frame into filter context\n");
@@ -441,7 +441,7 @@ int main(int argc, char* argv[])
 
 			while(1)
 			{
-				// 필터링된 프레임을 가져옵니다. 결과값이 0보다 작으면 필터가 비어있는 상태입니다.
+				// Get frame from filter, if it returns < 0 then filter is currently empty.
 				if(av_buffersink_get_frame(filter_ctx->sink_ctx, filtered_frame) < 0)
 				{
 					break;
