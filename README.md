@@ -1,4 +1,4 @@
 # FFmpegTutorial
 
-Learn FFmpeg step by step. Codes are tested, compiled on FFmpeg 2.8.x, but also works on FFmpeg 3.2.x.
+Learn FFmpeg step by step. All codes are based on FFmpeg 2.8.x but also works on FFmpeg 3.2.
 If you want to know more about FFmpeg, you can find my book(only for korean language) at http://www.yes24.com/24/goods/20365557 
