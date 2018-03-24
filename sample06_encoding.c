@@ -608,7 +608,7 @@ int main(int argc, char* argv[])
 		av_free_packet(&pkt);
 	} // while
 
-	// This flush all remaining frames in encoder and filter.
+	// Flush all remaining frames in encoder and filter.
 	int index, got_packet;
 	for(index = 0; index < inputFile.fmt_ctx->nb_streams; index++)
 	{
@@ -618,7 +618,7 @@ int main(int argc, char* argv[])
 			continue;
 		}
 
-		// flush filter
+		// Flush filter
 		out_stream_index = (index == inputFile.v_index) ? 
 						outputFile.v_index : outputFile.a_index;
 		ret = filter_encode_write_frame(NULL, out_stream_index);
